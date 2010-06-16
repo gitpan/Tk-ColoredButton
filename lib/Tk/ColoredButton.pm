@@ -1,0 +1,1136 @@
+package Tk::ColoredButton;
+
+use warnings;
+use strict;
+use Carp;
+
+#==================================================================
+# Author    : Djibril Ousmanou
+# Copyright : 2010
+# Update    : 17/06/2010 00:50:16
+# AIM       : Create gradient background color on a button
+#==================================================================
+
+use vars qw($VERSION);
+$VERSION = '1.00';
+
+use base qw/Tk::Derived Tk::Canvas::GradientColor/;
+use Tk::Balloon;
+
+Construct Tk::Widget 'ColoredButton';
+
+#id   =>  widget balloon
+my %all_balloon;
+my $count  = 1;
+my %config = (
+  balloon_tooltip => undef,
+  tags            => {
+    all    => '_cb_tag',
+    text   => '_cb_text_tag',
+    image  => '_cb_image_tag',
+    bitmap => '_cb_bitmap_tag',
+    font   => '_cb_font_tag'
+  },
+  button => { press => 0, },
+  ids    => { flash => undef, textvariable => undef, id_repeatdelay => undef },
+  specialbutton => {
+    -background  => 'SystemButtonFace',
+    -borderwidth => 2,
+    -height      => 20,
+    -relief      => 'raised',
+    -state       => 'normal',
+    -width       => 80,
+  },
+  '-activebackground'    => 'SystemButtonFace',
+  '-activeforeground'    => 'SystemButtonText',
+  '-activegradient'      => { -start_color => '#FFFFFF', -end_color => '#B2B2B2' },
+  '-anchor'              => 'center',
+  '-bitmap'              => undef,
+  '-gradient'            => { -start_color => '#B2B2B2', -end_color => '#FFFFFF' },
+  '-command'             => undef,
+  '-compound'            => 'none',
+  '-disabledforeground'  => 'SystemDisabledText',
+  '-font'                => '{MS Sans Serif} 8',
+  '-foreground'          => 'SystemButtonText',
+  '-highlightbackground' => undef,
+  '-image'               => undef,
+  '-justify'             => 'center',
+  '-overrelief'          => undef,
+  '-padx'                => 1,
+  '-pady'                => 1,
+  '-relief'              => 'raised',
+  '-textvariable'        => undef,
+  '-tooltip'             => undef,
+  '-wraplength'          => 0,
+);
+
+sub Populate {
+  my ( $cw, $RefParameters ) = @_;
+
+  $cw->SUPER::Populate($RefParameters);
+  $cw->Advertise( 'GradientColor' => $cw );
+  $cw->Advertise( 'canvas'        => $cw->SUPER::Canvas );
+  $cw->Advertise( 'Canvas'        => $cw->SUPER::Canvas );
+
+  $cw->{_cb_id} = $count;
+  $cw->{_conf_cb}{$count} = \%config;
+
+  # Default widget configuration
+  $cw->configure( %{ $config{specialbutton} } );
+
+  # ConfigSpecs
+  $cw->ConfigSpecs(
+    -activebackground => [ 'PASSIVE', 'activeBackground', 'ActiveBackground', 'SystemButtonFace' ],
+    -activegradient   => [
+      'PASSIVE', 'activeGradient',
+      'ActiveGradient', { -start_color => '#FFFFFF', -end_color => '#B2B2B2' }
+    ],
+    -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   'SystemButtonText' ],
+    -anchor             => [ 'PASSIVE', 'anchor',             'Anchor',             'center' ],
+    -bitmap             => [ 'PASSIVE', 'bitmap',             'Bitmap',             undef ],
+    -command            => [ 'PASSIVE', 'command',            'Command',            undef ],
+    -compound           => [ 'PASSIVE', 'compound',           'Compound',           'none' ],
+    -disabledforeground => [ 'PASSIVE', 'disabledForeground', 'DisabledForeground', 'SystemDisabledText' ],
+    -font               => [ 'PASSIVE', 'font',               'Font',               '{MS Sans Serif} 8' ],
+    -foreground         => [ 'PASSIVE', 'foreground',         'Foreground',         'SystemButtonText' ],
+    -gradient =>
+      [ 'PASSIVE', 'gradient', 'Gradient', { -start_color => '#B2B2B2', -end_color => '#FFFFFF' } ],
+    -image          => [ 'PASSIVE', 'image',          'Image',          undef ],
+    -imagedisabled  => [ 'PASSIVE', 'imageDisabled',  'ImageDisabled',  undef ],
+    -justify        => [ 'PASSIVE', 'justify',        'Justify',        'center' ],
+    -overrelief     => [ 'PASSIVE', 'overRelief',     'OverRelief',     undef ],
+    -padx           => [ 'PASSIVE', 'padx',           'Padx',           1 ],
+    -pady           => [ 'PASSIVE', 'pady',           'Pady',           1 ],
+    -state          => [ 'PASSIVE', 'state',          'State',          'normal' ],
+    -repeatdelay    => [ 'PASSIVE', 'repeatDelay',    'RepeatDelay',    undef ],
+    -repeatinterval => [ 'PASSIVE', 'repeatInterval', 'RepeatInterval', undef ],
+    -text           => [ 'PASSIVE', 'text',           'Text',           ' ' ],
+    -textvariable   => [ 'METHOD',  'textVariable',   'TextVariable',   undef ],
+    -tooltip        => [ 'PASSIVE', 'tooltip',        'Tooltip',        undef ],
+    -wraplength     => [ 'PASSIVE', 'wrapLength',     'WrapLength',     0 ],
+  );
+
+  $cw->Delegates( DEFAULT => $cw );
+
+  $cw->Tk::bind( '<ButtonPress-1>',   \&_press_button );
+  $cw->Tk::bind( '<ButtonRelease-1>', \&_press_leave );
+  $cw->Tk::bind( '<Enter>',           \&_enter );
+  $cw->Tk::bind( '<Leave>',           \&_leave );
+  $cw->Tk::bind( '<Configure>' => \&_create_bouton );
+
+  $count++;
+}
+
+sub _sets_options {
+  my ($cw) = @_;
+
+  #===============================Configuration========================
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-background}         = $cw->cget( -background );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-borderwidth}        = $cw->cget( -borderwidth );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-height}             = $cw->cget( -height );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-relief}             = $cw->cget( -relief );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-state}              = $cw->cget( -state );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-width}              = $cw->cget( -width );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-cursor}             = $cw->cget( -cursor );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-highlightcolor}     = $cw->cget( -highlightcolor );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-highlightthickness} = $cw->cget( -highlightthickness );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-takefocus}          = $cw->cget( -takefocus );
+
+  #===============================End Configuration========================
+
+  my $gradient       = $cw->cget( -gradient );
+  my $activegradient = $cw->cget( -activegradient );
+
+  if ( defined $gradient ) {
+    my $ref = ref $gradient;
+    unless ( $ref =~ m{HASH}i ) {
+      croak("You have to set a hash reference to -gradient option\n");
+    }
+  }
+  if ( defined $activegradient ) {
+    my $ref = ref $activegradient;
+    unless ( $ref =~ m{HASH}i ) {
+      croak("You have to set a hash reference to -activegradient option\n");
+    }
+  }
+  return;
+}
+
+sub redraw_button {
+  my $cw = shift;
+
+  # Simulate press_leave and leave button
+  my $button_press = $config{ $cw->{_cb_id} }{button}{press};
+  $cw->_leave if ( $button_press and $button_press == 1 );
+  $cw->_create_bouton;
+
+  return;
+}
+
+sub _create_bouton {
+  my ($cw) = @_;
+
+  # clear button
+  $cw->_clear_button;
+
+  # configure all options
+  $cw->_sets_options;
+
+  # For background gradient color
+  my $ref_gradient = $cw->cget( -gradient );
+  $cw->set_gradientcolor( %{$ref_gradient} );
+
+  # Create text
+  $cw->_text();
+
+  # Create image
+  $cw->_image_bitmap();
+
+  # Create tooltip
+  $cw->_tooltip();
+
+  return;
+}
+
+sub _clear_button {
+  my $cw = shift;
+
+  foreach ( $cw->find( 'all' ) ) {
+    $cw->delete($_);
+  }
+  $cw->delete('all');
+  return;
+}
+
+sub _enter {
+  my $cw = shift;
+
+  # mouse over the button
+  $config{ $cw->{_cb_id} }{button}{enter} = 1;
+  my $press_button = $config{ $cw->{_cb_id} }{button}{press};
+  my $state        = $cw->cget( -state );
+  my $tag_text     = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  my $background   = $cw->cget( -background );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-background} = $background;
+
+  return if ( $state eq 'disabled' );
+
+  if ( defined $press_button and $press_button == 1 ) {
+    $cw->_press_button;
+  }
+
+  # -background
+  my $activebackground = $cw->cget( -activebackground );
+  $cw->configure( -background => $activebackground );
+
+  # -gradient
+  my $activegradient = $cw->cget( -activegradient );
+  $cw->set_gradientcolor( %{ $cw->cget( -activegradient ) } );
+
+  # -overrelief
+  if ( my $overrelief = $cw->cget( -overrelief ) ) {
+    $cw->configure( -relief => $overrelief );
+  }
+
+  # -activeforeground
+  if ( my $activeforeground = $cw->cget( -activeforeground ) ) {
+    $cw->itemconfigure( $tag_text, -fill => $activeforeground );
+  }
+
+  return;
+}
+
+sub _leave {
+  my $cw = shift;
+
+  # mouse not over the button
+  $config{ $cw->{_cb_id} }{button}{enter} = 0;
+
+  my $foreground = $cw->cget( -foreground );
+  my $state      = $cw->cget( -state );
+  my $tag_text   = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  return if ( $state eq 'disabled' );
+
+  # -background
+  $cw->configure( -background => $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-background} );
+
+  # -gradient
+  my $gradient = $cw->cget( -gradient );
+  $cw->set_gradientcolor( %{$gradient} );
+
+  # -overrelief
+  if ( my $overrelief = $cw->cget( -overrelief ) ) {
+    $cw->configure( -relief => $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-relief} );
+  }
+
+  $cw->itemconfigure( $tag_text, -fill => $foreground );
+
+  my $id_repeatdelay = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay};
+  if ( defined $id_repeatdelay ) {
+    $id_repeatdelay->cancel;
+    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay} = undef;
+  }
+
+  # press_leave set by leave button (just relief)
+  $cw->_press_leave('leave');
+
+  return;
+}
+
+sub _press_button {
+  my $cw = shift;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  $cw->configure( -relief => 'sunken' );
+  $config{ $cw->{_cb_id} }{button}{press} = 1;
+
+  # -repeatdelay
+  if ( my $repeatdelay = $cw->cget( -repeatdelay ) ) {
+    my $id_repeatdelay = $cw->repeat(
+      $repeatdelay,
+      sub {
+        $cw->invoke;
+        $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}->cancel;
+        $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 1;
+
+        # -repeatinterval
+        if ( my $repeatinterval = $cw->cget( -repeatinterval ) ) {
+          $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}
+            = $cw->repeat( $repeatinterval, sub { $cw->invoke; } );
+        }
+      }
+    );
+    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay} = $id_repeatdelay;
+  }
+
+  return;
+}
+
+sub _press_leave {
+  my ( $cw, $who ) = @_;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  my $id_repeatdelay    = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay};
+  my $press_repeatdelay = $config{ $cw->{_cb_id} }{button}{press_repeatdelay};
+  if ( defined $id_repeatdelay ) {
+    $id_repeatdelay->cancel;
+    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay} = undef;
+  }
+
+  # Execute command
+  if ( $config{ $cw->{_cb_id} }{button}{enter} == 1 ) {
+    unless ( defined $press_repeatdelay and $press_repeatdelay == 1 ) {
+      $cw->_command( $cw->cget( -command ) );
+    }
+  }
+  $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 0;
+
+  if ( my $overrelief = $cw->cget( -overrelief ) ) {
+    $cw->configure( -relief => $overrelief );
+  }
+  else {
+    $cw->configure( -relief => $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-relief} );
+  }
+  unless ( defined $who and $who eq 'leave' ) {
+    $config{ $cw->{_cb_id} }{button}{press} = 0;
+  }
+
+  return;
+}
+
+sub _command {
+  my ( $cw, $ref_args ) = @_;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' or not defined $ref_args );
+
+  my $type_arg = ref $ref_args;
+
+  # no arguments
+  if ( $type_arg =~ m{^CODE$}i ) {
+    $ref_args->();
+  }
+  elsif ( $type_arg =~ m{^ARRAY$}i ) {
+    my $command = $ref_args->[0];
+    my @args;
+    my $i = 0;
+    foreach my $argument ( @{$ref_args} ) {
+      push( @args, $argument ) unless ( $i == 0 );
+      $i++;
+    }
+    $command->(@args);
+  }
+  return;
+}
+
+sub invoke {
+  my $cw = shift;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  $cw->_command( $cw->cget( -command ) );
+  return;
+}
+
+sub flash {
+  my ( $cw, $interval ) = @_;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  my $id_flash = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash};
+
+  if ( defined $id_flash ) {
+    $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
+
+    $id_flash->cancel;
+    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = undef;
+  }
+  return if ( defined $interval and $interval == 0 );
+
+  $interval = 300 unless defined $interval;
+
+  my $i = 0;
+  $id_flash = $cw->repeat(
+    $interval,
+    sub {
+      if ( $i % 2 == 0 ) {
+        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text},
+          -fill => $cw->cget( -disabledforeground ) );
+      }
+      else {
+        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
+      }
+      $i++;
+    }
+  );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = $id_flash;
+  return $id_flash;
+}
+
+sub _delete_text {
+  my $cw = shift;
+
+  my $tag = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  if ( $cw->find( 'withtag', $tag ) ) {
+    $cw->delete($tag);
+  }
+  return;
+}
+
+sub _delete_image_bitmap {
+  my $cw = shift;
+
+  my $bitmap        = $cw->cget( -bitmap );
+  my $image         = $cw->cget( -image );
+  my $imagedisabled = $cw->cget( -imagedisabled );
+  my $tag_image     = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{image};
+  my $tag_bitmap    = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{bitmap};
+
+  if ( $cw->find( 'withtag', $tag_image ) ) {
+    $cw->delete($tag_image);
+  }
+  if ( $cw->find( 'withtag', $tag_bitmap ) ) {
+    $cw->delete($tag_bitmap);
+  }
+  return;
+}
+
+sub _image_bitmap {
+  my $cw = shift;
+
+  my $anchor             = $cw->cget( -anchor );
+  my $bitmap             = $cw->cget( -bitmap );
+  my $compound           = $cw->cget( -compound );
+  my $disabledforeground = $cw->cget( -disabledforeground );
+  my $font               = $cw->cget( -font );
+  my $foreground         = $cw->cget( -foreground );
+  my $image              = $cw->cget( -image );
+  my $imagedisabled      = $cw->cget( -imagedisabled );
+  my $justify            = $cw->cget( -justify );
+  my $wraplength         = $cw->cget( -wraplength );
+  my $state              = $cw->cget( -state );
+  my $tag_all            = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{all};
+  my $tag_image          = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{image};
+  my $tag_bitmap         = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{bitmap};
+  my $tag_text           = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  my $text               = $cw->cget( -text );
+
+  if ( $state eq 'disabled' and defined $imagedisabled ) {
+    $image = $imagedisabled;
+  }
+
+  unless ( defined $image or defined $bitmap ) {
+    return;
+  }
+
+  $cw->_delete_text;
+  $cw->_delete_image_bitmap;
+
+  my ( $x_text, $y_text, $x_image, $y_image );
+  ( $x_image, $y_image ) = $cw->_anchor_position;
+
+  if ( $compound =~ m{^left|bottom|center|right|top$} ) {
+    ( $x_text, $y_text, $x_image, $y_image ) = $cw->_anchor_position_compound($image);
+  }
+
+  if ( defined $image ) {
+    my $id_image = $cw->createImage(
+      $x_image, $y_image,
+      -anchor => $anchor,
+      -image  => $image,
+      -state  => $state,
+      -tags   => [ $tag_all, $tag_image ],
+    );
+  }
+  else {
+    my $id_image = $cw->createBitmap(
+      $x_image, $y_image,
+      -anchor => $anchor,
+      -bitmap => $bitmap,
+      -state  => $state,
+      -tags   => [ $tag_all, $tag_bitmap ],
+    );
+  }
+
+  if ( defined $x_text and defined $y_text ) {
+    $cw->createText(
+      $x_text, $y_text,
+      -anchor  => $anchor,
+      -fill    => $foreground,
+      -font    => $font,
+      -justify => $justify,
+      -tags    => [ $tag_all, $tag_text ],
+      -text    => $text,
+      -width   => $wraplength,
+    );
+  }
+
+  if ( $state eq 'disabled' ) {
+    $cw->itemconfigure( $tag_text, -fill => $disabledforeground );
+  }
+  return 1;
+}
+
+sub _text {
+  my $cw = shift;
+
+  my $anchor             = $cw->cget( -anchor );
+  my $bitmap             = $cw->cget( -bitmap );
+  my $disabledforeground = $cw->cget( -disabledforeground );
+  my $font               = $cw->cget( -font );
+  my $foreground         = $cw->cget( -foreground );
+  my $justify            = $cw->cget( -justify );
+  my $state              = $cw->cget( -state );
+  my $tag_all            = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{all};
+  my $tag_text           = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  my $text               = $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} || $cw->cget( -text );
+  my $wraplength         = $cw->cget( -wraplength );
+
+  if ( ref $text eq "SCALAR" ) { $text = ${$text}; }
+  $cw->_delete_text;
+
+  my ( $x_text, $y_text ) = $cw->_anchor_position($anchor);
+  $cw->createText(
+    $x_text, $y_text,
+    -anchor  => $anchor,
+    -fill    => $foreground,
+    -font    => $font,
+    -justify => $justify,
+    -tags    => [ $tag_all, $tag_text ],
+    -text    => $text,
+    -width   => $wraplength,
+  );
+
+  if ( $state eq 'disabled' ) {
+    $cw->itemconfigure( $tag_text, -fill => $disabledforeground );
+  }
+
+  return;
+}
+
+sub _anchor_position {
+  my $cw = shift;
+
+  my $anchor      = $cw->cget( -anchor );
+  my $width       = $cw->width;
+  my $height      = $cw->height;
+  my $borderwidth = $cw->cget( -borderwidth );
+  my $padx        = $cw->cget( -padx );
+  my $pady        = $cw->cget( -pady );
+
+  my ( $x, $y );
+  if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+    $y = ( 2 * $pady ) + ( 2 * $borderwidth );
+  }
+  elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
+    $y = $height / 2;
+  }
+  elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+    $y = $height - ( 2 * $pady ) - ( 2 * $borderwidth );
+  }
+
+  if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+    $x = ( 2 * $padx ) + ( 2 * $borderwidth );
+  }
+  elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
+    $x = $width / 2;
+  }
+  elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+    $x = $width - ( 2 * $padx ) - ( 2 * $borderwidth );
+  }
+
+  return ( $x, $y );
+}
+
+sub _anchor_position_compound {
+  my ( $cw, $image ) = @_;
+
+  my $anchor      = $cw->cget( -anchor );
+  my $bitmap      = $cw->cget( -bitmap );
+  my $compound    = $cw->cget( -compound );
+  my $font        = $cw->cget( -font );
+  my $text        = $cw->cget( -text );
+  my $width       = $cw->width;
+  my $height      = $cw->height;
+  my $borderwidth = $cw->cget( -borderwidth );
+  my $padx        = $cw->cget( -padx );
+  my $pady        = $cw->cget( -pady );
+
+  my ( $x_text, $y_text, $x_image, $y_image );
+  ( $x_text, $y_text ) = $cw->_anchor_position;
+  $x_image = $x_text;
+  $y_image = $y_text;
+
+  # Image dimension
+  my ( $image_width, $image_height ) = ();
+  if ( defined $image ) {
+    $image_width  = $image->width;
+    $image_height = $image->height;
+  }
+  elsif ( defined $bitmap ) {
+    my $bitmap_temp = $cw->createBitmap( 0, 0, '-bitmap' => $bitmap, -anchor => 'nw' );
+    ( undef, undef, $image_width, $image_height ) = $cw->bbox($bitmap_temp);
+    $cw->delete($bitmap_temp);
+  }
+
+  # no image or bitmap defined
+  else {
+    return ( $x_text, $y_text, $x_image, $y_image );
+  }
+
+  # Text dimension
+  my $text_temp = $cw->createText(
+    0, 0,
+    -anchor => 'nw',
+    -font   => $font,
+    -text   => $text,
+  );
+  my ( undef, undef, $text_width, $text_height ) = $cw->bbox($text_temp);
+  $cw->delete($text_temp);
+
+  my $diff_width  = $text_width - $image_width;
+  my $diff_height = $text_height - $image_height;
+
+  # Compound
+  if ( $compound eq 'left' ) {
+    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+      $x_text += $image_width;
+    }
+    elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
+      $x_text += $image_width / 2;
+      $x_image = $x_text - ( $text_width / 2 ) - ( $image_width / 2 );
+    }
+    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+      $x_image -= $text_width;
+    }
+
+    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+      if ( $diff_height > 0 ) {
+        $y_image += ( $diff_height / 2 );
+      }
+      else {
+        $y_text -= ( $diff_height / 2 );
+      }
+    }
+    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+      if ( $diff_height > 0 ) {
+        $y_image -= ( $diff_height / 2 );
+      }
+      else {
+        $y_text += ( $diff_height / 2 );
+      }
+    }
+    $x_text += 4;
+  }
+  elsif ( $compound eq 'right' ) {
+    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+      $x_image += $text_width;
+    }
+    elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
+      $x_image += ( $text_width / 2 );
+      $x_text -= ( $image_width / 2 );
+    }
+    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+      $x_text -= $image_width;
+    }
+
+    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+      if ( $diff_height > 0 ) {
+        $y_image += ( $diff_height / 2 );
+      }
+      else {
+        $y_text -= ( $diff_height / 2 );
+      }
+    }
+    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+      if ( $diff_height > 0 ) {
+        $y_image -= ( $diff_height / 2 );
+      }
+      else {
+        $y_text += ( $diff_height / 2 );
+      }
+    }
+    $x_image += 4;
+  }
+  elsif ( $compound eq 'center' ) {
+    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+      if ( $diff_width > 0 ) {
+        $x_image += ( $diff_width / 2 );
+      }
+      else {
+        $x_text -= ( $diff_width / 2 );
+      }
+    }
+    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+      if ( $diff_width > 0 ) {
+        $x_image -= ( $diff_width / 2 );
+      }
+      else {
+        $x_text += ( $diff_width / 2 );
+      }
+    }
+    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+      if ( $diff_height > 0 ) {
+        $y_image += ( $diff_height / 2 );
+      }
+      else {
+        $y_text -= ( $diff_height / 2 );
+      }
+    }
+    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+      if ( $diff_height > 0 ) {
+        $y_image -= ( $diff_height / 2 );
+      }
+      else {
+        $y_text += ( $diff_height / 2 );
+      }
+    }
+  }
+  elsif ( $compound eq 'bottom' ) {
+    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+      if ( $diff_width > 0 ) {
+        $x_image += ( $text_width - $image_width ) / 2;
+      }
+      else {
+        $x_text += -($diff_width) / 2;
+      }
+    }
+    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+      if ( $diff_width > 0 ) {
+        $x_image -= ( $text_width - $image_width ) / 2;
+      }
+      else {
+        $x_text -= -($diff_width) / 2;
+      }
+    }
+    if ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+      $y_image = $height - ( 2 * $pady ) - ( 2 * $borderwidth );
+      $y_text -= $image_height;
+    }
+    elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
+      $y_image += $text_height / 2 + $image_height / 2;
+      $y_image -= $text_height / 2;
+      $y_text  -= $text_height / 2;      
+    }
+    elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+      $y_image += $text_height;
+    }
+  }
+  elsif ( $compound eq 'top' ) {
+    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
+      if ( $diff_width > 0 ) {
+        $x_image += ($diff_width) / 2;
+      }
+      else {
+        $x_text -= ($diff_width) / 2;
+      }
+    }
+    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
+      if ( $diff_width > 0 ) {
+        $x_image -= ($diff_width) / 2;
+      }
+      else {
+        $x_text += ($diff_width) / 2;
+      }
+    }
+    if ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
+      $y_image = $y_text - $text_height;
+    }
+    elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
+      $y_image -= $text_height / 2 + $image_height / 2;
+      $y_image += $text_height / 2;
+      $y_text  += $text_height / 2;      
+    }
+    elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
+      $y_text = $y_text + $image_height;
+    }
+  }
+
+  return ( $x_text, $y_text, $x_image, $y_image );
+}
+
+sub textvariable {
+  my ( $cw, $ref_text ) = @_;
+
+  unless ( defined $ref_text ) {
+    my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
+    if ( defined $id_textvariable ) {
+      $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
+      $id_textvariable->cancel();
+    }
+    return;
+  }
+
+  my $tag_text        = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} = $ref_text;
+
+  if ( defined $id_textvariable ) {
+    $id_textvariable->cancel();
+  }
+  $cw->_text() if ( $cw->cget( -text ) );
+  $id_textvariable = $cw->repeat( 300, sub { $cw->_text() if ( $cw->cget( -text ) ); } );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
+
+  return;
+}
+
+sub _tooltip {
+  my $cw = shift;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+  my $tooltip_balloon = $cw->cget( -tooltip );
+  my $id              = $cw->{_cb_id};
+  my $initwait        = 350;
+  my $tooltip;
+
+  if ( ref $tooltip_balloon eq 'ARRAY' and $tooltip_balloon->[1] and $tooltip_balloon->[1] =~ m{^\d+$} ) {
+    $tooltip  = $tooltip_balloon->[0];
+    $initwait = $tooltip_balloon->[1];
+  }
+  else {
+    $tooltip = $tooltip_balloon;
+  }
+
+  if ( defined $tooltip ) {
+    if ( exists $all_balloon{$id} and Tk::Exists $all_balloon{$id} ) {
+      $all_balloon{$id}->configure( -state => 'none' );
+      $all_balloon{$id}->detach($cw);
+      $all_balloon{$id} = undef;
+    }
+
+    $all_balloon{$id} = $cw->Balloon( -background => 'white', );
+    $all_balloon{$id}->attach(
+      $cw,
+      -balloonposition => 'mouse',
+      -msg             => $tooltip,
+      -initwait        => '100',
+    );
+  }
+
+  return;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+Tk::ColoredButton - Button widget with background gradient color. 
+
+=head1 SYNOPSIS
+
+  #!/usr/bin/perl
+  use strict;
+  use warnings;
+  
+  use Tk;
+  use Tk::ColoredButton;
+  
+  my $mw = MainWindow->new( -background => 'white', );
+  $mw->minsize( 300, 300 );
+  
+  for my $num ( 1 .. 2 ) {
+    my $bouton = $mw->ColoredButton(
+      -text     => "bouton $num",
+      -height   => 40,
+      -width    => 160,
+      -font     => '{arial} 12 bold',
+      -text     => "bouton $num",
+      -gradient => {
+        -start_color  => '#FFFFFF',
+        -end_color    => '#bfd4e8',
+        -type         => 'mirror_vertical',
+        -start        => 50,
+        -number_color => 10
+      },
+      -activegradient => {
+        -start_color  => '#bfd4e8',
+        -end_color    => '#FFFFFF',
+        -type         => 'mirror_vertical',
+        -start        => 50,
+        -number_color => 10
+      },
+      -command => [ \&test, "test bouton $num" ],
+    )->pack(qw/-padx 10 -pady 10 /); 
+  }
+  
+  my $vrai_bouton = $mw->Button(
+    -text    => 'exit',
+    -command => sub {exit},
+  )->pack(qw/-ipadx 10 -pady 10 /);
+  
+  MainLoop;
+  
+  sub test {
+    my $test = shift;
+    print $test, "\n";
+  }
+
+
+=head1 DESCRIPTION
+
+Tk::ColoredButton is an extension of the Tk::Canvas::GradientColor widget. It is an easy way to simulate  
+a button widget with gradient background color.
+
+=head1 STANDARD OPTIONS
+
+The following L<Tk::Button> options are supported :
+
+B<-activebackground>    B<-activeforeground>    B<-anchor>            B<-background>          
+B<-bitmap>              B<-borderwidth>	        B<-command>           B<-compound>	            
+B<-cursor>              B<-disabledforeground>  B<-font>              B<-foreground>           
+B<-height>	            B<-highlightbackground> B<-highlightcolor>    B<-highlightthickness>   
+B<-image>               B<-justify>             B<-padx>              B<-pady>                 
+B<-relief>              B<-repeatdelay>         B<-repeatinterval>    B<-state>
+B<-takefocus>           B<-text>                B<-textvariable>      B<-width>               
+B<-wraplength>    
+
+=head1 WIDGET-SPECIFIC OPTIONS 
+
+There are many options which allow you to configure your button as you want.
+
+=over 4
+
+=item Name:	B<activeGradient>
+
+=item Class: B<ActiveGradient>
+
+=item Switch: B<-activegradient> => I<hash reference>
+
+Specifies gradient background color to use when the mouse cursor is positioned over 
+the button. Please read the options of the B<set_gradientcolor> method of L<Tk::Canvas::GradientColor> to 
+understand the options.
+  
+  -activegradient => {
+    -start_color  => '#bfd4e8',
+    -end_color    => '#FFFFFF',
+    -type         => 'mirror_vertical',
+    -start        => 50,
+    -number_color => 10
+  },
+
+Default : B<{ -start_color =E<gt> '#FFFFFF', -end_color =E<gt> '#B2B2B2' }>
+
+=back
+
+=over 4
+
+=item Name:	B<gradient>
+
+=item Class: B<Gradient>
+
+=item Switch: B<-gradient>
+
+Specifies gradient background color on the button. Please read the options of the 
+B<set_gradientcolor> method of L<Tk::Canvas::GradientColor/set_gradientcolor> to understand the options.
+  
+  -gradient => {
+    -start_color  => '#FFFFFF',
+    -end_color    => '#bfd4e8',
+    -type         => 'mirror_vertical',
+    -start        => 50,
+    -number_color => 10
+  },
+
+Default : B<{ -start_color =E<gt> '#B2B2B2', -end_color =E<gt> '#FFFFFF' }>
+
+=item B<-height or -width>
+
+Specifies a desired window height/width that the button widget should request from its geometry manager. 
+The value may be specified in any of the forms described in the L<Tk::Canvas/"COORDINATES"> section below.
+
+Default : B<-height =E<gt> 20,> B<-width =E<gt> 80,>
+
+=back
+
+=over 4
+
+=item Name:	B<imageDisabled>
+
+=item Class: B<ImageDisabled>
+
+=item Switch: B<-imagedisabled> => I<$tooltip or [$tooltip, $iniwait?]>
+
+Specifies an image to display in the button when it is disabled. (
+See L<Tk::Photo> or L<Tk::Image> for details of image creation.) .
+
+  -imagedisabled => $image_photo,         
+
+Default : B<undef>
+
+=back
+
+=over 4
+
+=item Name:	B<tooltip>
+
+=item Class: B<Tooltip>
+
+=item Switch: B<-tooltip> => I<$tooltip or [$tooltip, $iniwait?]>
+
+Creates and attaches help balloons (using L<Tk::Balloon>). Then, 
+when the mouse pauses over the button, a help balloon is popped up.
+
+$iniwait Specifies the amount of time to wait without activity before popping up a 
+help balloon. Specified in milliseconds. Defaults to B<350 milliseconds>. This applies 
+to both the popped up balloon and the status bar message.
+
+  -tooltip => 'my button message',         
+  -tooltip => ['my button message', 200],
+
+Default : B<undef>
+
+=back
+
+=head1 WIDGET-SPECIFIC METHODS
+
+You can use B<invoke> method like in L<Tk::Button>.
+
+=head2 flash
+
+=over 4
+
+=item I<$button_bgc>->B<flash>(?$interval) I<in ms>
+
+Flash the button. This is accomplished by change foreground color of the button several times, 
+alternating between active and normal colors. At the end of the flash the button 
+is left in the same normal/active state as when the command was invoked. This command 
+is ignored if the button's state is B<disabled>.
+
+$interval is the time in milliseconds between each alternative.
+
+If $interval is not specified, the button will alternate between active and normal colors every 300 B<milliseconds>.
+
+If $interval is zero, any current flash operation will be cancel.
+
+If $interval is non-zero, the button will alternate every $interval milliseconds until 
+it is explicitly cancelled via $interval to zero or using B<cancel> method to id returned.
+
+  my $id = $button_bgc->flash(1000);
+  $button_bgc->flash(0); # Cancel the flash
+
+=back
+
+
+=head2 redraw_button
+
+=over 4
+
+=item I<$button_bgc>->B<redraw_button>
+
+Re-creates the button. Tk::ColoredButton supports the B<configure> and B<cget> methods 
+described in the L<Tk::options> manpage. If you use configure method to change 
+a widget specific option, the modification will not be display. You have to update your 
+widget by redraw it using this method.
+
+  $button_bgc->redraw_button;
+
+=back
+
+=head1 AUTHOR
+
+Djibril Ousmanou, C<< <djibel at cpan.org> >>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to C<bug-tk-coloredbutton at rt.cpan.org>, or through
+the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Tk-ColoredButton>.  I will be notified, and then you'll
+automatically be notified of progress on your bug as I make changes.
+
+=head1 SEE ALSO
+
+See also L<Tk::StyledButton> and L<Tk::Button>.
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Tk::ColoredButton
+
+You can also look for information at:
+
+=over 4
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Tk-ColoredButton>
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Tk-ColoredButton>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Tk-ColoredButton>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Tk-ColoredButton/>
+
+=back
+
+
+=head1 ACKNOWLEDGEMENTS
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2010 Djibril Ousmanou.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.
+
+See http://dev.perl.org/licenses/ for more information.
+
+
+=cut
