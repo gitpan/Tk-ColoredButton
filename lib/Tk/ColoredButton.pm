@@ -7,12 +7,12 @@ use Carp;
 #==================================================================
 # Author    : Djibril Ousmanou
 # Copyright : 2010
-# Update    : 17/06/2010 00:50:16
+# Update    : 19/06/2010 23:39:24
 # AIM       : Create gradient background color on a button
 #==================================================================
 
 use vars qw($VERSION);
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 use base qw/Tk::Derived Tk::Canvas::GradientColor/;
 use Tk::Balloon;
@@ -25,21 +25,25 @@ my $count  = 1;
 my %config = (
   balloon_tooltip => undef,
   tags            => {
-    all    => '_cb_tag',
-    text   => '_cb_text_tag',
-    image  => '_cb_image_tag',
-    bitmap => '_cb_bitmap_tag',
-    font   => '_cb_font_tag'
+    all      => '_cb_tag',
+    text     => '_cb_text_tag',
+    image    => '_cb_image_tag',
+    bitmap   => '_cb_bitmap_tag',
+    font     => '_cb_font_tag',
+    focusin  => '_cb_focusin_tag',
+    focusout => '_cb_focusout_tag',
+    font     => '_cb_font_tag'
   },
   button => { press => 0, },
   ids    => { flash => undef, textvariable => undef, id_repeatdelay => undef },
   specialbutton => {
-    -background  => 'SystemButtonFace',
-    -borderwidth => 2,
-    -height      => 20,
-    -relief      => 'raised',
-    -state       => 'normal',
-    -width       => 80,
+    -background         => 'SystemButtonFace',
+    -borderwidth        => 2,
+    -height             => 20,
+    -highlightthickness => 0,
+    -relief             => 'raised',
+    -state              => 'normal',
+    -width              => 80,
   },
   '-activebackground'    => 'SystemButtonFace',
   '-activeforeground'    => 'SystemButtonText',
@@ -86,6 +90,7 @@ sub Populate {
       'ActiveGradient', { -start_color => '#FFFFFF', -end_color => '#B2B2B2' }
     ],
     -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   'SystemButtonText' ],
+    -autofit            => [ 'PASSIVE', 'autofit',            'Autofit',            '0' ],
     -anchor             => [ 'PASSIVE', 'anchor',             'Anchor',             'center' ],
     -bitmap             => [ 'PASSIVE', 'bitmap',             'Bitmap',             undef ],
     -command            => [ 'PASSIVE', 'command',            'Command',            undef ],
@@ -112,13 +117,107 @@ sub Populate {
 
   $cw->Delegates( DEFAULT => $cw );
 
+  foreach my $key (qw{ Down End Home Left Next Prior Right Up }) {
+    $cw->Tk::bind( 'Tk::ColoredButton', "<Key-$key>",         undef );
+    $cw->Tk::bind( 'Tk::ColoredButton', "<Control-Key-$key>", undef );
+  }
   $cw->Tk::bind( '<ButtonPress-1>',   \&_press_button );
   $cw->Tk::bind( '<ButtonRelease-1>', \&_press_leave );
   $cw->Tk::bind( '<Enter>',           \&_enter );
   $cw->Tk::bind( '<Leave>',           \&_leave );
-  $cw->Tk::bind( '<Configure>' => \&_create_bouton );
+  $cw->Tk::bind( '<Configure>',       \&_create_bouton );
+  $cw->Tk::bind( '<FocusIn>',         \&_focus_in );
+  $cw->Tk::bind( '<FocusOut>',        \&_focus_out );
+
+  foreach my $key (qw/ Return space /) {
+    $cw->Tk::bind( "<Key-$key>",         sub { $cw->invoke; } );
+    $cw->Tk::bind( "<Control-Key-$key>", sub { $cw->invoke; } );
+  }
 
   $count++;
+}
+
+sub redraw_button {
+  my $cw = shift;
+
+  # Simulate press_leave and leave button
+  my $button_press = $config{ $cw->{_cb_id} }{button}{press};
+  $cw->_leave if ( $button_press and $button_press == 1 );
+  $cw->_create_bouton;
+
+  return;
+}
+
+sub invoke {
+  my $cw = shift;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  $cw->_command( $cw->cget( -command ) );
+  return;
+}
+
+sub flash {
+  my ( $cw, $interval ) = @_;
+
+  my $state = $cw->cget( -state );
+  return if ( $state eq 'disabled' );
+
+  my $id_flash = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash};
+
+  if ( defined $id_flash ) {
+    $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
+
+    $id_flash->cancel;
+    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = undef;
+  }
+  return if ( defined $interval and $interval == 0 );
+
+  $interval = 300 unless defined $interval;
+
+  my $i = 0;
+  $id_flash = $cw->repeat(
+    $interval,
+    sub {
+      if ( $i % 2 == 0 ) {
+        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text},
+          -fill => $cw->cget( -disabledforeground ) );
+      }
+      else {
+        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
+      }
+      $i++;
+    }
+  );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = $id_flash;
+  return $id_flash;
+}
+
+sub textvariable {
+  my ( $cw, $ref_text ) = @_;
+
+  unless ( defined $ref_text ) {
+    my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
+    if ( defined $id_textvariable ) {
+      $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
+      $id_textvariable->cancel();
+    }
+    return;
+  }
+
+  my $tag_text        = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
+  my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} = $ref_text;
+
+  if ( defined $id_textvariable ) {
+    $id_textvariable->cancel();
+  }
+  $cw->_text() if ( $cw->cget( -text ) );
+  $id_textvariable = $cw->repeat( 300, sub { $cw->_text() if ( $cw->cget( -text ) ); } );
+  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
+
+  return;
 }
 
 sub _sets_options {
@@ -156,17 +255,6 @@ sub _sets_options {
   return;
 }
 
-sub redraw_button {
-  my $cw = shift;
-
-  # Simulate press_leave and leave button
-  my $button_press = $config{ $cw->{_cb_id} }{button}{press};
-  $cw->_leave if ( $button_press and $button_press == 1 );
-  $cw->_create_bouton;
-
-  return;
-}
-
 sub _create_bouton {
   my ($cw) = @_;
 
@@ -189,13 +277,19 @@ sub _create_bouton {
   # Create tooltip
   $cw->_tooltip();
 
+  # autofit
+  my $autofit = $cw->cget( -autofit );
+  if ( $autofit and $autofit == 1 ) {
+    $cw->_autofit_resize;
+  }
+
   return;
 }
 
 sub _clear_button {
   my $cw = shift;
 
-  foreach ( $cw->find( 'all' ) ) {
+  foreach ( $cw->find('all') ) {
     $cw->delete($_);
   }
   $cw->delete('all');
@@ -235,6 +329,35 @@ sub _enter {
   # -activeforeground
   if ( my $activeforeground = $cw->cget( -activeforeground ) ) {
     $cw->itemconfigure( $tag_text, -fill => $activeforeground );
+  }
+
+  return;
+}
+
+sub _focus_in {
+  my ($cw) = @_;
+
+  my $borderwidth = $cw->cget( -borderwidth );
+  my $focusin_tag = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{focusin};
+  my $height      = $cw->cget( -height );
+  my $tag_all     = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{all};
+  my $width       = $cw->cget( -width );
+
+  my $id_image = $cw->createRectangle(
+    $borderwidth + 1, $borderwidth + 1, $width - $borderwidth + 1, $height - $borderwidth + 1,
+    -tags => [ $tag_all, $focusin_tag ],
+    -dash => '.',
+  );
+
+  return;
+}
+
+sub _focus_out {
+  my ($cw) = @_;
+
+  my $focusin_tag = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{focusin};
+  if ( $cw->find( 'withtag', $focusin_tag ) ) {
+    $cw->delete($focusin_tag);
   }
 
   return;
@@ -365,52 +488,6 @@ sub _command {
     $command->(@args);
   }
   return;
-}
-
-sub invoke {
-  my $cw = shift;
-
-  my $state = $cw->cget( -state );
-  return if ( $state eq 'disabled' );
-
-  $cw->_command( $cw->cget( -command ) );
-  return;
-}
-
-sub flash {
-  my ( $cw, $interval ) = @_;
-
-  my $state = $cw->cget( -state );
-  return if ( $state eq 'disabled' );
-
-  my $id_flash = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash};
-
-  if ( defined $id_flash ) {
-    $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
-
-    $id_flash->cancel;
-    $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = undef;
-  }
-  return if ( defined $interval and $interval == 0 );
-
-  $interval = 300 unless defined $interval;
-
-  my $i = 0;
-  $id_flash = $cw->repeat(
-    $interval,
-    sub {
-      if ( $i % 2 == 0 ) {
-        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text},
-          -fill => $cw->cget( -disabledforeground ) );
-      }
-      else {
-        $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text}, -fill => $cw->cget( -foreground ) );
-      }
-      $i++;
-    }
-  );
-  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = $id_flash;
-  return $id_flash;
 }
 
 sub _delete_text {
@@ -551,6 +628,86 @@ sub _text {
     $cw->itemconfigure( $tag_text, -fill => $disabledforeground );
   }
 
+  return;
+}
+
+sub _autofit_resize {
+  my $cw = shift;
+
+  my $image       = $cw->cget( -image );
+  my $bitmap      = $cw->cget( -bitmap );
+  my $compound    = $cw->cget( -compound );
+  my $font        = $cw->cget( -font );
+  my $text        = $cw->cget( -text );
+  my $width       = $cw->width;
+  my $height      = $cw->height;
+  my $borderwidth = $cw->cget( -borderwidth );
+
+  my $widthcw  = $cw->width;
+  my $heightcw = $cw->height;
+  my $padx     = $cw->cget( -padx ) + 4;
+  my $pady     = $cw->cget( -pady ) + 4;
+
+  # Text dimension
+  my ( $text_width, $text_height, $image_width, $image_height );
+  if ( defined $text ) {
+    my $text_temp = $cw->createText(
+      0, 0,
+      -anchor => 'nw',
+      -font   => $font,
+      -text   => $text,
+    );
+    ( undef, undef, $text_width, $text_height ) = $cw->bbox($text_temp);
+    $cw->delete($text_temp);
+  }
+  if ( defined $image ) {
+    $image_width  = $image->width;
+    $image_height = $image->height;
+  }
+  elsif ( defined $bitmap ) {
+    my $bitmap_temp = $cw->createBitmap( 0, 0, '-bitmap' => $bitmap, -anchor => 'nw' );
+    ( undef, undef, $image_width, $image_height ) = $cw->bbox($bitmap_temp);
+    $cw->delete($bitmap_temp);
+  }
+
+  # autofit : Dimension, button
+  my ( $total_width, $total_height ) = ( 0, 0 );
+
+  # image/bitmap and compound
+  if (  ( defined $image or defined $bitmap )
+    and ( defined $compound and $compound =~ m{^left|right|bottom|top|center$} ) )
+  {
+
+    if ( $compound =~ m{^left|right$} ) {
+      $width = $image_width + $text_width + ( 2 * $padx );
+      $height = _MaxArray( [ $image_height, $text_height ] ) + ( 2 * $pady );
+    }
+    elsif ( $compound =~ m{^bottom|top$} ) {
+      $width = _MaxArray( [ $image_width, $text_width ] ) + ( 2 * $padx );
+      $height = $image_height + $text_height + ( 2 * $pady );
+    }
+    elsif ( $compound eq 'center' ) {
+      $width  = _MaxArray( [ $image_width,  $text_width ] ) +  ( 2 * $padx );
+      $height = _MaxArray( [ $image_height, $text_height ] ) + ( 2 * $pady );
+    }
+  }
+
+  # image/bitmap replace text
+  elsif ( defined $image or defined $bitmap ) {
+    $width  = $image->width +  ( 2 * $padx );
+    $height = $image->height + ( 2 * $pady );
+  }
+
+  # just text
+  elsif ( defined $text ) {
+    $width  = $text_width +  ( 2 * $padx );
+    $height = $text_height + ( 2 * $pady );
+  }
+
+  unless ( $widthcw == $width and $heightcw == $height ) {
+    $cw->configure( -width => $width, -height => $height );
+
+  }
   return;
 }
 
@@ -756,7 +913,7 @@ sub _anchor_position_compound {
     elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
       $y_image += $text_height / 2 + $image_height / 2;
       $y_image -= $text_height / 2;
-      $y_text  -= $text_height / 2;      
+      $y_text  -= $text_height / 2;
     }
     elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
       $y_image += $text_height;
@@ -785,7 +942,7 @@ sub _anchor_position_compound {
     elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
       $y_image -= $text_height / 2 + $image_height / 2;
       $y_image += $text_height / 2;
-      $y_text  += $text_height / 2;      
+      $y_text  += $text_height / 2;
     }
     elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
       $y_text = $y_text + $image_height;
@@ -793,32 +950,6 @@ sub _anchor_position_compound {
   }
 
   return ( $x_text, $y_text, $x_image, $y_image );
-}
-
-sub textvariable {
-  my ( $cw, $ref_text ) = @_;
-
-  unless ( defined $ref_text ) {
-    my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
-    if ( defined $id_textvariable ) {
-      $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
-      $id_textvariable->cancel();
-    }
-    return;
-  }
-
-  my $tag_text        = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
-  my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
-  $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} = $ref_text;
-
-  if ( defined $id_textvariable ) {
-    $id_textvariable->cancel();
-  }
-  $cw->_text() if ( $cw->cget( -text ) );
-  $id_textvariable = $cw->repeat( 300, sub { $cw->_text() if ( $cw->cget( -text ) ); } );
-  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
-
-  return;
 }
 
 sub _tooltip {
@@ -851,9 +982,55 @@ sub _tooltip {
       $cw,
       -balloonposition => 'mouse',
       -msg             => $tooltip,
-      -initwait        => '100',
+      -initwait        => $initwait,
     );
   }
+
+  return;
+}
+
+sub _MaxArray {
+  my ($RefNumber) = @_;
+  my $max;
+
+  for my $chiffre ( @{$RefNumber} ) {
+    $max = _max( $max, $chiffre );
+  }
+
+  return $max;
+}
+
+sub _MinArray {
+  my ($RefNumber) = @_;
+  my $min;
+
+  for my $chiffre ( @{$RefNumber} ) {
+    $min = _min( $min, $chiffre );
+  }
+
+  return $min;
+}
+
+sub _max {
+  my ( $a, $b ) = @_;
+  if ( not defined $a ) { return $b; }
+  if ( not defined $b ) { return $a; }
+  if ( not defined $a and not defined $b ) { return; }
+
+  if   ( $a >= $b ) { return $a; }
+  else              { return $b; }
+
+  return;
+}
+
+sub _min {
+  my ( $a, $b ) = @_;
+  if ( not defined $a ) { return $b; }
+  if ( not defined $b ) { return $a; }
+  if ( not defined $a and not defined $b ) { return; }
+
+  if   ( $a <= $b ) { return $a; }
+  else              { return $b; }
 
   return;
 }
@@ -875,50 +1052,57 @@ Tk::ColoredButton - Button widget with background gradient color.
   use Tk;
   use Tk::ColoredButton;
   
-  my $mw = MainWindow->new( -background => 'white', );
+  my $mw = MainWindow->new( -background => 'white', -title => 'ColoredButton example' );
   $mw->minsize( 300, 300 );
   
-  for my $num ( 1 .. 2 ) {
-    my $bouton = $mw->ColoredButton(
-      -text     => "bouton $num",
-      -height   => 40,
-      -width    => 160,
-      -font     => '{arial} 12 bold',
-      -text     => "bouton $num",
-      -gradient => {
-        -start_color  => '#FFFFFF',
-        -end_color    => '#bfd4e8',
-        -type         => 'mirror_vertical',
-        -start        => 50,
-        -number_color => 10
-      },
-      -activegradient => {
-        -start_color  => '#bfd4e8',
-        -end_color    => '#FFFFFF',
-        -type         => 'mirror_vertical',
-        -start        => 50,
-        -number_color => 10
-      },
-      -command => [ \&test, "test bouton $num" ],
-    )->pack(qw/-padx 10 -pady 10 /); 
-  }
+  my $ColoredButton = $mw->ColoredButton(
+    -text               => 'ColoredButton1',
+    -autofit            => 1,
+    -font               => '{arial} 12 bold',
+    -command            => [ \&display, 'ColoredButton1' ],
+  )->pack(qw/-padx 10 -pady 10 /);
   
-  my $vrai_bouton = $mw->Button(
-    -text    => 'exit',
-    -command => sub {exit},
+  my $ColoredButton2 = $mw->ColoredButton(
+    -text     => 'ColoredButton2',
+    -font     => '{arial} 12 bold',
+    -command  => [ \&display, 'ColoredButton2' ],
+    -height   => 40,
+    -width    => 160,
+    -gradient => {
+      -start_color  => '#FFFFFF',
+      -end_color    => '#bfd4e8',
+      -type         => 'mirror_vertical',
+      -start        => 50,
+      -number_color => 10
+    },
+    -activegradient => {
+      -start_color  => '#bfd4e8',
+      -end_color    => '#FFFFFF',
+      -type         => 'mirror_vertical',
+      -start        => 50,
+      -number_color => 10
+    },
+  )->pack(qw/-padx 10 -pady 10 /);
+  
+  my $Button = $mw->Button(
+    -activebackground => 'yellow',
+    -background       => 'green',
+    -text             => 'Real Button',
+    -font             => '{arial} 12 bold',
+    -command          => [ \&display, 'Button' ],
   )->pack(qw/-ipadx 10 -pady 10 /);
   
   MainLoop;
   
-  sub test {
-    my $test = shift;
-    print $test, "\n";
+  sub display {
+    my $message = shift;
+    print "$message\n" if ($message);
   }
 
 
 =head1 DESCRIPTION
 
-Tk::ColoredButton is an extension of the Tk::Canvas::GradientColor widget. It is an easy way to simulate  
+Tk::ColoredButton is an extension of the B<Tk::Canvas::GradientColor> widget. It is an easy way to simulate  
 a button widget with gradient background color.
 
 =head1 STANDARD OPTIONS
@@ -964,6 +1148,22 @@ Default : B<{ -start_color =E<gt> '#FFFFFF', -end_color =E<gt> '#B2B2B2' }>
 
 =over 4
 
+=item Name:	B<autofit>
+
+=item Class: B<Autofit>
+
+=item Switch: B<-autofit> => I<1 or 0>
+
+Enables automatic adjustment (width and height) of the button depending on the content displayed (text, image, bitmap, ...). 
+  
+  -autofit => 1,
+
+Default : B<0>
+
+=back
+
+=over 4
+
 =item Name:	B<gradient>
 
 =item Class: B<Gradient>
@@ -987,6 +1187,8 @@ Default : B<{ -start_color =E<gt> '#B2B2B2', -end_color =E<gt> '#FFFFFF' }>
 
 Specifies a desired window height/width that the button widget should request from its geometry manager. 
 The value may be specified in any of the forms described in the L<Tk::Canvas/"COORDINATES"> section below.
+
+You can also use the B<autofit> option if you want to have an automatic adjustment for your button.
 
 Default : B<-height =E<gt> 20,> B<-width =E<gt> 80,>
 

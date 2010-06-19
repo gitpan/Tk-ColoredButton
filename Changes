@@ -1,5 +1,12 @@
 Revision history for Tk-ColoredButton
 
+1.01    19/06/2010 23:36:13
+        -autofit option have been added to allow the automatic adjustment button.
+        -highlightthickness sets to 0 by default to remove border focus rectangle.
+        The keyboard focus is now visible on button.
+        The bug binding keys have been fixed.
+        When you use -tooltip option, -iniwait option will be really set to 350 ms by default (and not 100 ms). 
+
 1.00    17/06/2010 00:06:00
         First version.
 
