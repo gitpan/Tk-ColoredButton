@@ -7,12 +7,12 @@ use Carp;
 #==================================================================
 # Author    : Djibril Ousmanou
 # Copyright : 2010
-# Update    : 19/06/2010 23:39:24
+# Update    : 21/06/2010 22:28:56
 # AIM       : Create gradient background color on a button
 #==================================================================
 
 use vars qw($VERSION);
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 use base qw/Tk::Derived Tk::Canvas::GradientColor/;
 use Tk::Balloon;
@@ -117,7 +117,7 @@ sub Populate {
 
   $cw->Delegates( DEFAULT => $cw );
 
-  foreach my $key (qw{ Down End Home Left Next Prior Right Up }) {
+  foreach my $key (qw/ Down End Home Left Next Prior Right Up /) {
     $cw->Tk::bind( 'Tk::ColoredButton', "<Key-$key>",         undef );
     $cw->Tk::bind( 'Tk::ColoredButton', "<Control-Key-$key>", undef );
   }
@@ -180,6 +180,7 @@ sub flash {
   $id_flash = $cw->repeat(
     $interval,
     sub {
+      return unless ( Tk::Exists $cw );
       if ( $i % 2 == 0 ) {
         $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text},
           -fill => $cw->cget( -disabledforeground ) );
@@ -214,7 +215,13 @@ sub textvariable {
     $id_textvariable->cancel();
   }
   $cw->_text() if ( $cw->cget( -text ) );
-  $id_textvariable = $cw->repeat( 300, sub { $cw->_text() if ( $cw->cget( -text ) ); } );
+  $id_textvariable = $cw->repeat(
+    300,
+    sub {
+      return unless ( Tk::Exists $cw );
+      $cw->_text() if ( $cw->cget( -text ) );
+    }
+  );
   $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
 
   return;
@@ -414,6 +421,7 @@ sub _press_button {
     my $id_repeatdelay = $cw->repeat(
       $repeatdelay,
       sub {
+        return unless ( Tk::Exists $cw );
         $cw->invoke;
         $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}->cancel;
         $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 1;
@@ -421,7 +429,7 @@ sub _press_button {
         # -repeatinterval
         if ( my $repeatinterval = $cw->cget( -repeatinterval ) ) {
           $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}
-            = $cw->repeat( $repeatinterval, sub { $cw->invoke; } );
+            = $cw->repeat( $repeatinterval, sub { return unless ( Tk::Exists $cw ); $cw->invoke; } );
         }
       }
     );
@@ -450,6 +458,10 @@ sub _press_leave {
       $cw->_command( $cw->cget( -command ) );
     }
   }
+
+  # if widget is destroyed
+  return unless ( Tk::Exists $cw );
+
   $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 0;
 
   if ( my $overrelief = $cw->cget( -overrelief ) ) {

@@ -1,5 +1,8 @@
 Revision history for Tk-ColoredButton
 
+1.02    21/06/2010 22:29:28
+        Bug fixed if parent widget button is destroyed after press button.    
+
 1.01    19/06/2010 23:36:13
         -autofit option have been added to allow the automatic adjustment button.
         -highlightthickness sets to 0 by default to remove border focus rectangle.
