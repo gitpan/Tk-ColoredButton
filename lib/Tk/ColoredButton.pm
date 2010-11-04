@@ -7,21 +7,40 @@ use Carp;
 #==================================================================
 # Author    : Djibril Ousmanou
 # Copyright : 2010
-# Update    : 21/06/2010 22:28:56
+# Update    : 04/11/2010 19:45:07
 # AIM       : Create gradient background color on a button
 #==================================================================
 
 use vars qw($VERSION);
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 use base qw/Tk::Derived Tk::Canvas::GradientColor/;
 use Tk::Balloon;
 
 Construct Tk::Widget 'ColoredButton';
 
-#id   =>  widget balloon
+# Id   =>  widget balloon
 my %all_balloon;
-my $count  = 1;
+my $count = 1;
+
+my ( $SystemButtonFace, $SystemButtonText, $SystemDisabledText, $ActiveBackground, $DefaultFont ) = ();
+
+# Default Colors for all OS
+if ( $^O =~ m/^MSWin32$/i ) {
+  $SystemButtonFace   = 'SystemButtonFace';
+  $ActiveBackground   = $SystemButtonFace;
+  $SystemButtonText   = 'SystemButtonText';
+  $SystemDisabledText = 'SystemDisabledText';
+  $DefaultFont        = '{MS Sans Serif} 8';
+}
+else {
+  $SystemButtonFace   = '#D9D9D9';
+  $ActiveBackground   = '#ECECEC';
+  $SystemButtonText   = 'black';
+  $SystemDisabledText = '#A3A3A3';
+  $DefaultFont        = '{Helvetica} 12 {bold}';
+}
+
 my %config = (
   balloon_tooltip => undef,
   tags            => {
@@ -37,7 +56,7 @@ my %config = (
   button => { press => 0, },
   ids    => { flash => undef, textvariable => undef, id_repeatdelay => undef },
   specialbutton => {
-    -background         => 'SystemButtonFace',
+    -background         => $SystemButtonFace,
     -borderwidth        => 2,
     -height             => 20,
     -highlightthickness => 0,
@@ -45,17 +64,17 @@ my %config = (
     -state              => 'normal',
     -width              => 80,
   },
-  '-activebackground'    => 'SystemButtonFace',
-  '-activeforeground'    => 'SystemButtonText',
+  '-activebackground'    => $ActiveBackground,
+  '-activeforeground'    => $SystemButtonText,
   '-activegradient'      => { -start_color => '#FFFFFF', -end_color => '#B2B2B2' },
   '-anchor'              => 'center',
   '-bitmap'              => undef,
   '-gradient'            => { -start_color => '#B2B2B2', -end_color => '#FFFFFF' },
   '-command'             => undef,
   '-compound'            => 'none',
-  '-disabledforeground'  => 'SystemDisabledText',
-  '-font'                => '{MS Sans Serif} 8',
-  '-foreground'          => 'SystemButtonText',
+  '-disabledforeground'  => $SystemDisabledText,
+  '-font'                => $DefaultFont,
+  '-foreground'          => $SystemButtonText,
   '-highlightbackground' => undef,
   '-image'               => undef,
   '-justify'             => 'center',
@@ -80,24 +99,26 @@ sub Populate {
   $cw->{_conf_cb}{$count} = \%config;
 
   # Default widget configuration
-  $cw->configure( %{ $config{specialbutton} } );
+  foreach ( keys %{ $config{specialbutton} } ) {
+    $cw->configure( $_ => $config{specialbutton}{$_} ) if ( defined $config{specialbutton}{$_} );
+  }
 
   # ConfigSpecs
   $cw->ConfigSpecs(
-    -activebackground => [ 'PASSIVE', 'activeBackground', 'ActiveBackground', 'SystemButtonFace' ],
+    -activebackground => [ 'PASSIVE', 'activeBackground', 'ActiveBackground', $ActiveBackground ],
     -activegradient   => [
       'PASSIVE', 'activeGradient',
       'ActiveGradient', { -start_color => '#FFFFFF', -end_color => '#B2B2B2' }
     ],
-    -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   'SystemButtonText' ],
+    -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   $SystemButtonText ],
     -autofit            => [ 'PASSIVE', 'autofit',            'Autofit',            '0' ],
     -anchor             => [ 'PASSIVE', 'anchor',             'Anchor',             'center' ],
     -bitmap             => [ 'PASSIVE', 'bitmap',             'Bitmap',             undef ],
     -command            => [ 'PASSIVE', 'command',            'Command',            undef ],
     -compound           => [ 'PASSIVE', 'compound',           'Compound',           'none' ],
-    -disabledforeground => [ 'PASSIVE', 'disabledForeground', 'DisabledForeground', 'SystemDisabledText' ],
-    -font               => [ 'PASSIVE', 'font',               'Font',               '{MS Sans Serif} 8' ],
-    -foreground         => [ 'PASSIVE', 'foreground',         'Foreground',         'SystemButtonText' ],
+    -disabledforeground => [ 'PASSIVE', 'disabledForeground', 'DisabledForeground', $SystemDisabledText ],
+    -font               => [ 'PASSIVE', 'font',               'Font',               $DefaultFont ],
+    -foreground         => [ 'PASSIVE', 'foreground',         'Foreground',         $SystemButtonText ],
     -gradient =>
       [ 'PASSIVE', 'gradient', 'Gradient', { -start_color => '#B2B2B2', -end_color => '#FFFFFF' } ],
     -image          => [ 'PASSIVE', 'image',          'Image',          undef ],
@@ -155,6 +176,7 @@ sub invoke {
   return if ( $state eq 'disabled' );
 
   $cw->_command( $cw->cget( -command ) );
+
   return;
 }
 
@@ -192,6 +214,7 @@ sub flash {
     }
   );
   $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = $id_flash;
+
   return $id_flash;
 }
 
@@ -204,6 +227,7 @@ sub textvariable {
       $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
       $id_textvariable->cancel();
     }
+
     return;
   }
 
@@ -259,6 +283,7 @@ sub _sets_options {
       croak("You have to set a hash reference to -activegradient option\n");
     }
   }
+
   return;
 }
 
@@ -300,6 +325,7 @@ sub _clear_button {
     $cw->delete($_);
   }
   $cw->delete('all');
+
   return;
 }
 
@@ -499,6 +525,7 @@ sub _command {
     }
     $command->(@args);
   }
+
   return;
 }
 
@@ -509,6 +536,7 @@ sub _delete_text {
   if ( $cw->find( 'withtag', $tag ) ) {
     $cw->delete($tag);
   }
+
   return;
 }
 
@@ -527,6 +555,7 @@ sub _delete_image_bitmap {
   if ( $cw->find( 'withtag', $tag_bitmap ) ) {
     $cw->delete($tag_bitmap);
   }
+
   return;
 }
 
@@ -603,6 +632,7 @@ sub _image_bitmap {
   if ( $state eq 'disabled' ) {
     $cw->itemconfigure( $tag_text, -fill => $disabledforeground );
   }
+
   return 1;
 }
 
@@ -720,6 +750,7 @@ sub _autofit_resize {
     $cw->configure( -width => $width, -height => $height );
 
   }
+
   return;
 }
 

@@ -1,5 +1,9 @@
 Revision history for Tk-ColoredButton
 
+1.03    04/11/2010 19:48:42
+        Bug fixed for Linux, Solaris or other platforms where SystemButtonFace, SystemDisabledText, SystemXXX colors were unknown.
+        https://rt.cpan.org/Public/Bug/Display.html?id=62685     
+
 1.02    21/06/2010 22:29:28
         Bug fixed if parent widget button is destroyed after press button.    
 
