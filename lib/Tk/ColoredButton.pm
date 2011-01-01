@@ -4,18 +4,19 @@ use warnings;
 use strict;
 use Carp;
 
-#==================================================================
-# Author    : Djibril Ousmanou
-# Copyright : 2010
-# Update    : 04/11/2010 19:45:07
-# AIM       : Create gradient background color on a button
-#==================================================================
+#====================================================================
+# $Author    : Djibril Ousmanou                                    $
+# $Copyright : 2011                                                $
+# $Update    : 01/01/2011 00:00:00                                 $
+# $AIM       : Create gradient background color on a button        $
+#====================================================================
 
 use vars qw($VERSION);
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 use base qw/Tk::Derived Tk::Canvas::GradientColor/;
 use Tk::Balloon;
+use English '-no_match_vars';
 
 Construct Tk::Widget 'ColoredButton';
 
@@ -23,22 +24,29 @@ Construct Tk::Widget 'ColoredButton';
 my %all_balloon;
 my $count = 1;
 
-my ( $SystemButtonFace, $SystemButtonText, $SystemDisabledText, $ActiveBackground, $DefaultFont ) = ();
+my ( $system_button_face, $system_button_text, $system_disabled_text, $active_background, $default_font )
+  = ();
+my $FLASH_INTERVALL        = 300;
+my $TEXTVARIABLE_INTERVALL = 300;
+my $DASH                   = q{.};
+my $SPACE                  = q{ };
+my $INITWAIT               = 350;
+my $SPACE_PLUS             = 4;
 
 # Default Colors for all OS
-if ( $^O =~ m/^MSWin32$/i ) {
-  $SystemButtonFace   = 'SystemButtonFace';
-  $ActiveBackground   = $SystemButtonFace;
-  $SystemButtonText   = 'SystemButtonText';
-  $SystemDisabledText = 'SystemDisabledText';
-  $DefaultFont        = '{MS Sans Serif} 8';
+if ( $OSNAME eq 'MSWin32' ) {
+  $system_button_face   = 'SystemButtonFace';
+  $active_background    = $system_button_face;
+  $system_button_text   = 'SystemButtonText';
+  $system_disabled_text = 'SystemDisabledText';
+  $default_font         = '{MS Sans Serif} 8';
 }
 else {
-  $SystemButtonFace   = '#D9D9D9';
-  $ActiveBackground   = '#ECECEC';
-  $SystemButtonText   = 'black';
-  $SystemDisabledText = '#A3A3A3';
-  $DefaultFont        = '{Helvetica} 12 {bold}';
+  $system_button_face   = '#D9D9D9';
+  $active_background    = '#ECECEC';
+  $system_button_text   = 'black';
+  $system_disabled_text = '#A3A3A3';
+  $default_font         = '{Helvetica} 12 {bold}';
 }
 
 my %config = (
@@ -56,7 +64,7 @@ my %config = (
   button => { press => 0, },
   ids    => { flash => undef, textvariable => undef, id_repeatdelay => undef },
   specialbutton => {
-    -background         => $SystemButtonFace,
+    -background         => $system_button_face,
     -borderwidth        => 2,
     -height             => 20,
     -highlightthickness => 0,
@@ -64,17 +72,17 @@ my %config = (
     -state              => 'normal',
     -width              => 80,
   },
-  '-activebackground'    => $ActiveBackground,
-  '-activeforeground'    => $SystemButtonText,
+  '-activebackground'    => $active_background,
+  '-activeforeground'    => $system_button_text,
   '-activegradient'      => { -start_color => '#FFFFFF', -end_color => '#B2B2B2' },
   '-anchor'              => 'center',
   '-bitmap'              => undef,
   '-gradient'            => { -start_color => '#B2B2B2', -end_color => '#FFFFFF' },
   '-command'             => undef,
   '-compound'            => 'none',
-  '-disabledforeground'  => $SystemDisabledText,
-  '-font'                => $DefaultFont,
-  '-foreground'          => $SystemButtonText,
+  '-disabledforeground'  => $system_disabled_text,
+  '-font'                => $default_font,
+  '-foreground'          => $system_button_text,
   '-highlightbackground' => undef,
   '-image'               => undef,
   '-justify'             => 'center',
@@ -88,9 +96,9 @@ my %config = (
 );
 
 sub Populate {
-  my ( $cw, $RefParameters ) = @_;
+  my ( $cw, $ref_parameters ) = @_;
 
-  $cw->SUPER::Populate($RefParameters);
+  $cw->SUPER::Populate($ref_parameters);
   $cw->Advertise( 'GradientColor' => $cw );
   $cw->Advertise( 'canvas'        => $cw->SUPER::Canvas );
   $cw->Advertise( 'Canvas'        => $cw->SUPER::Canvas );
@@ -100,25 +108,25 @@ sub Populate {
 
   # Default widget configuration
   foreach ( keys %{ $config{specialbutton} } ) {
-    $cw->configure( $_ => $config{specialbutton}{$_} ) if ( defined $config{specialbutton}{$_} );
+    if ( defined $config{specialbutton}{$_} ) { $cw->configure( $_ => $config{specialbutton}{$_} ); }
   }
 
   # ConfigSpecs
   $cw->ConfigSpecs(
-    -activebackground => [ 'PASSIVE', 'activeBackground', 'ActiveBackground', $ActiveBackground ],
+    -activebackground => [ 'PASSIVE', 'activeBackground', 'ActiveBackground', $active_background ],
     -activegradient   => [
       'PASSIVE', 'activeGradient',
       'ActiveGradient', { -start_color => '#FFFFFF', -end_color => '#B2B2B2' }
     ],
-    -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   $SystemButtonText ],
+    -activeforeground   => [ 'PASSIVE', 'activeForeground',   'ActiveForeground',   $system_button_text ],
     -autofit            => [ 'PASSIVE', 'autofit',            'Autofit',            '0' ],
     -anchor             => [ 'PASSIVE', 'anchor',             'Anchor',             'center' ],
     -bitmap             => [ 'PASSIVE', 'bitmap',             'Bitmap',             undef ],
     -command            => [ 'PASSIVE', 'command',            'Command',            undef ],
     -compound           => [ 'PASSIVE', 'compound',           'Compound',           'none' ],
-    -disabledforeground => [ 'PASSIVE', 'disabledForeground', 'DisabledForeground', $SystemDisabledText ],
-    -font               => [ 'PASSIVE', 'font',               'Font',               $DefaultFont ],
-    -foreground         => [ 'PASSIVE', 'foreground',         'Foreground',         $SystemButtonText ],
+    -disabledforeground => [ 'PASSIVE', 'disabledForeground', 'DisabledForeground', $system_disabled_text ],
+    -font               => [ 'PASSIVE', 'font',               'Font',               $default_font ],
+    -foreground         => [ 'PASSIVE', 'foreground',         'Foreground',         $system_button_text ],
     -gradient =>
       [ 'PASSIVE', 'gradient', 'Gradient', { -start_color => '#B2B2B2', -end_color => '#FFFFFF' } ],
     -image          => [ 'PASSIVE', 'image',          'Image',          undef ],
@@ -130,7 +138,7 @@ sub Populate {
     -state          => [ 'PASSIVE', 'state',          'State',          'normal' ],
     -repeatdelay    => [ 'PASSIVE', 'repeatDelay',    'RepeatDelay',    undef ],
     -repeatinterval => [ 'PASSIVE', 'repeatInterval', 'RepeatInterval', undef ],
-    -text           => [ 'PASSIVE', 'text',           'Text',           ' ' ],
+    -text           => [ 'PASSIVE', 'text',           'Text',           $SPACE ],
     -textvariable   => [ 'METHOD',  'textVariable',   'TextVariable',   undef ],
     -tooltip        => [ 'PASSIVE', 'tooltip',        'Tooltip',        undef ],
     -wraplength     => [ 'PASSIVE', 'wrapLength',     'WrapLength',     0 ],
@@ -156,6 +164,7 @@ sub Populate {
   }
 
   $count++;
+  return;
 }
 
 sub redraw_button {
@@ -163,7 +172,7 @@ sub redraw_button {
 
   # Simulate press_leave and leave button
   my $button_press = $config{ $cw->{_cb_id} }{button}{press};
-  $cw->_leave if ( $button_press and $button_press == 1 );
+  if ( $button_press and $button_press == 1 ) { $cw->_leave; }
   $cw->_create_bouton;
 
   return;
@@ -194,15 +203,15 @@ sub flash {
     $id_flash->cancel;
     $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{-flash} = undef;
   }
-  return if ( defined $interval and $interval == 0 );
+  if ( defined $interval and $interval == 0 ) { return; }
 
-  $interval = 300 unless defined $interval;
+  if ( not defined $interval ) { $interval = $FLASH_INTERVALL; }
 
   my $i = 0;
   $id_flash = $cw->repeat(
     $interval,
     sub {
-      return unless ( Tk::Exists $cw );
+      if ( !Tk::Exists $cw ) { return; }
       if ( $i % 2 == 0 ) {
         $cw->itemconfigure( $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text},
           -fill => $cw->cget( -disabledforeground ) );
@@ -221,7 +230,7 @@ sub flash {
 sub textvariable {
   my ( $cw, $ref_text ) = @_;
 
-  unless ( defined $ref_text ) {
+  if ( not defined $ref_text ) {
     my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
     if ( defined $id_textvariable ) {
       $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
@@ -238,12 +247,12 @@ sub textvariable {
   if ( defined $id_textvariable ) {
     $id_textvariable->cancel();
   }
-  $cw->_text() if ( $cw->cget( -text ) );
+  if ( $cw->cget( -text ) ) { $cw->_text(); }
   $id_textvariable = $cw->repeat(
-    300,
+    $TEXTVARIABLE_INTERVALL,
     sub {
-      return unless ( Tk::Exists $cw );
-      $cw->_text() if ( $cw->cget( -text ) );
+      if ( !Tk::Exists $cw )    { return; }
+      if ( $cw->cget( -text ) ) { $cw->_text(); }
     }
   );
   $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
@@ -266,21 +275,19 @@ sub _sets_options {
   $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-highlightthickness} = $cw->cget( -highlightthickness );
   $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-takefocus}          = $cw->cget( -takefocus );
 
-  #===============================End Configuration========================
-
   my $gradient       = $cw->cget( -gradient );
   my $activegradient = $cw->cget( -activegradient );
 
   if ( defined $gradient ) {
     my $ref = ref $gradient;
-    unless ( $ref =~ m{HASH}i ) {
-      croak("You have to set a hash reference to -gradient option\n");
+    if ( $ref ne 'HASH' ) {
+      croak('You have to set a hash reference to -gradient option');
     }
   }
   if ( defined $activegradient ) {
     my $ref = ref $activegradient;
-    unless ( $ref =~ m{HASH}i ) {
-      croak("You have to set a hash reference to -activegradient option\n");
+    if ( $ref ne 'HASH' ) {
+      croak('You have to set a hash reference to -activegradient option');
     }
   }
 
@@ -347,11 +354,9 @@ sub _enter {
   }
 
   # -background
-  my $activebackground = $cw->cget( -activebackground );
-  $cw->configure( -background => $activebackground );
+  $cw->configure( -background => $cw->cget( -activebackground ) );
 
   # -gradient
-  my $activegradient = $cw->cget( -activegradient );
   $cw->set_gradientcolor( %{ $cw->cget( -activegradient ) } );
 
   # -overrelief
@@ -379,7 +384,7 @@ sub _focus_in {
   my $id_image = $cw->createRectangle(
     $borderwidth + 1, $borderwidth + 1, $width - $borderwidth + 1, $height - $borderwidth + 1,
     -tags => [ $tag_all, $focusin_tag ],
-    -dash => '.',
+    -dash => $DASH,
   );
 
   return;
@@ -447,15 +452,20 @@ sub _press_button {
     my $id_repeatdelay = $cw->repeat(
       $repeatdelay,
       sub {
-        return unless ( Tk::Exists $cw );
+        if ( !Tk::Exists $cw ) { return; }
         $cw->invoke;
         $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}->cancel;
         $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 1;
 
         # -repeatinterval
         if ( my $repeatinterval = $cw->cget( -repeatinterval ) ) {
-          $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay}
-            = $cw->repeat( $repeatinterval, sub { return unless ( Tk::Exists $cw ); $cw->invoke; } );
+          $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay} = $cw->repeat(
+            $repeatinterval,
+            sub {
+              if ( !Tk::Exists $cw ) { return; }
+              $cw->invoke;
+            }
+          );
         }
       }
     );
@@ -469,7 +479,7 @@ sub _press_leave {
   my ( $cw, $who ) = @_;
 
   my $state = $cw->cget( -state );
-  return if ( $state eq 'disabled' );
+  if ( $state eq 'disabled' ) { return; }
 
   my $id_repeatdelay    = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{id_repeatdelay};
   my $press_repeatdelay = $config{ $cw->{_cb_id} }{button}{press_repeatdelay};
@@ -480,13 +490,13 @@ sub _press_leave {
 
   # Execute command
   if ( $config{ $cw->{_cb_id} }{button}{enter} == 1 ) {
-    unless ( defined $press_repeatdelay and $press_repeatdelay == 1 ) {
+    if ( not defined $press_repeatdelay or $press_repeatdelay != 1 ) {
       $cw->_command( $cw->cget( -command ) );
     }
   }
 
   # if widget is destroyed
-  return unless ( Tk::Exists $cw );
+  if ( !Tk::Exists $cw ) { return; }
 
   $config{ $cw->{_cb_id} }{button}{press_repeatdelay} = 0;
 
@@ -496,7 +506,7 @@ sub _press_leave {
   else {
     $cw->configure( -relief => $cw->{_conf_cb}{ $cw->{_cb_id} }{specialbutton}{-relief} );
   }
-  unless ( defined $who and $who eq 'leave' ) {
+  if ( not defined $who or $who ne 'leave' ) {
     $config{ $cw->{_cb_id} }{button}{press} = 0;
   }
 
@@ -507,20 +517,20 @@ sub _command {
   my ( $cw, $ref_args ) = @_;
 
   my $state = $cw->cget( -state );
-  return if ( $state eq 'disabled' or not defined $ref_args );
+  if ( $state eq 'disabled' or not defined $ref_args ) { return; }
 
   my $type_arg = ref $ref_args;
 
   # no arguments
-  if ( $type_arg =~ m{^CODE$}i ) {
+  if ( $type_arg eq 'CODE' ) {
     $ref_args->();
   }
-  elsif ( $type_arg =~ m{^ARRAY$}i ) {
+  elsif ( $type_arg eq 'ARRAY' ) {
     my $command = $ref_args->[0];
     my @args;
     my $i = 0;
     foreach my $argument ( @{$ref_args} ) {
-      push( @args, $argument ) unless ( $i == 0 );
+      if ( $i != 0 ) { push @args, $argument; }
       $i++;
     }
     $command->(@args);
@@ -543,11 +553,8 @@ sub _delete_text {
 sub _delete_image_bitmap {
   my $cw = shift;
 
-  my $bitmap        = $cw->cget( -bitmap );
-  my $image         = $cw->cget( -image );
-  my $imagedisabled = $cw->cget( -imagedisabled );
-  my $tag_image     = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{image};
-  my $tag_bitmap    = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{bitmap};
+  my $tag_image  = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{image};
+  my $tag_bitmap = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{bitmap};
 
   if ( $cw->find( 'withtag', $tag_image ) ) {
     $cw->delete($tag_image);
@@ -583,7 +590,7 @@ sub _image_bitmap {
     $image = $imagedisabled;
   }
 
-  unless ( defined $image or defined $bitmap ) {
+  if ( not defined $image and not defined $bitmap ) {
     return;
   }
 
@@ -593,7 +600,12 @@ sub _image_bitmap {
   my ( $x_text, $y_text, $x_image, $y_image );
   ( $x_image, $y_image ) = $cw->_anchor_position;
 
-  if ( $compound =~ m{^left|bottom|center|right|top$} ) {
+  if ( $compound eq 'left'
+    or $compound eq 'bottom'
+    or $compound eq 'center'
+    or $compound eq 'right'
+    or $compound eq 'top' )
+  {
     ( $x_text, $y_text, $x_image, $y_image ) = $cw->_anchor_position_compound($image);
   }
 
@@ -640,7 +652,6 @@ sub _text {
   my $cw = shift;
 
   my $anchor             = $cw->cget( -anchor );
-  my $bitmap             = $cw->cget( -bitmap );
   my $disabledforeground = $cw->cget( -disabledforeground );
   my $font               = $cw->cget( -font );
   my $foreground         = $cw->cget( -foreground );
@@ -651,7 +662,7 @@ sub _text {
   my $text               = $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} || $cw->cget( -text );
   my $wraplength         = $cw->cget( -wraplength );
 
-  if ( ref $text eq "SCALAR" ) { $text = ${$text}; }
+  if ( ref $text eq 'SCALAR' ) { $text = ${$text}; }
   $cw->_delete_text;
 
   my ( $x_text, $y_text ) = $cw->_anchor_position($anchor);
@@ -687,8 +698,8 @@ sub _autofit_resize {
 
   my $widthcw  = $cw->width;
   my $heightcw = $cw->height;
-  my $padx     = $cw->cget( -padx ) + 4;
-  my $pady     = $cw->cget( -pady ) + 4;
+  my $padx     = $cw->cget( -padx ) + $SPACE_PLUS;
+  my $pady     = $cw->cget( -pady ) + $SPACE_PLUS;
 
   # Text dimension
   my ( $text_width, $text_height, $image_width, $image_height );
@@ -716,21 +727,30 @@ sub _autofit_resize {
   my ( $total_width, $total_height ) = ( 0, 0 );
 
   # image/bitmap and compound
-  if (  ( defined $image or defined $bitmap )
-    and ( defined $compound and $compound =~ m{^left|right|bottom|top|center$} ) )
+  if (
+    ( defined $image or defined $bitmap )
+    and (
+      defined $compound
+      and ($compound eq 'left'
+        or $compound eq 'right'
+        or $compound eq 'center'
+        or $compound eq 'bottom'
+        or $compound eq 'top' )
+    )
+    )
   {
 
-    if ( $compound =~ m{^left|right$} ) {
+    if ( $compound eq 'left' or $compound eq 'right' ) {
       $width = $image_width + $text_width + ( 2 * $padx );
-      $height = _MaxArray( [ $image_height, $text_height ] ) + ( 2 * $pady );
+      $height = _maxarray( [ $image_height, $text_height ] ) + ( 2 * $pady );
     }
-    elsif ( $compound =~ m{^bottom|top$} ) {
-      $width = _MaxArray( [ $image_width, $text_width ] ) + ( 2 * $padx );
+    elsif ( $compound eq 'bottom' or $compound eq 'top' ) {
+      $width = _maxarray( [ $image_width, $text_width ] ) + ( 2 * $padx );
       $height = $image_height + $text_height + ( 2 * $pady );
     }
     elsif ( $compound eq 'center' ) {
-      $width  = _MaxArray( [ $image_width,  $text_width ] ) +  ( 2 * $padx );
-      $height = _MaxArray( [ $image_height, $text_height ] ) + ( 2 * $pady );
+      $width  = _maxarray( [ $image_width,  $text_width ] ) +  ( 2 * $padx );
+      $height = _maxarray( [ $image_height, $text_height ] ) + ( 2 * $pady );
     }
   }
 
@@ -746,9 +766,8 @@ sub _autofit_resize {
     $height = $text_height + ( 2 * $pady );
   }
 
-  unless ( $widthcw == $width and $heightcw == $height ) {
+  if ( $widthcw != $width or $heightcw != $height ) {
     $cw->configure( -width => $width, -height => $height );
-
   }
 
   return;
@@ -764,28 +783,46 @@ sub _anchor_position {
   my $padx        = $cw->cget( -padx );
   my $pady        = $cw->cget( -pady );
 
-  my ( $x, $y );
-  if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-    $y = ( 2 * $pady ) + ( 2 * $borderwidth );
-  }
-  elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
-    $y = $height / 2;
-  }
-  elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-    $y = $height - ( 2 * $pady ) - ( 2 * $borderwidth );
-  }
+  my %xy_anchor_position = (
+    n => {
+      x => $width / 2,
+      y => ( 2 * $pady ) + ( 2 * $borderwidth ),
+    },
+    nw => {
+      x => ( 2 * $padx ) + ( 2 * $borderwidth ),
+      y => ( 2 * $pady ) + ( 2 * $borderwidth ),
+    },
+    ne => {
+      x => $width - ( 2 * $padx ) - ( 2 * $borderwidth ),
+      y => ( 2 * $pady ) + ( 2 * $borderwidth ),
+    },
+    s => {
+      x => $width / 2,
+      y => $height - ( 2 * $pady ) - ( 2 * $borderwidth ),
+    },
+    sw => {
+      x => ( 2 * $padx ) + ( 2 * $borderwidth ),
+      y => $height - ( 2 * $pady ) - ( 2 * $borderwidth ),
+    },
+    se => {
+      x => $width -  ( 2 * $padx ) - ( 2 * $borderwidth ),
+      y => $height - ( 2 * $pady ) - ( 2 * $borderwidth ),
+    },
+    center => {
+      x => $width / 2,
+      y => $height / 2,
+    },
+    w => {
+      x => ( 2 * $padx ) + ( 2 * $borderwidth ),
+      y => $height / 2,
+    },
+    e => {
+      x => $width - ( 2 * $padx ) - ( 2 * $borderwidth ),
+      y => $height / 2,
+    },
+  );
 
-  if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-    $x = ( 2 * $padx ) + ( 2 * $borderwidth );
-  }
-  elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
-    $x = $width / 2;
-  }
-  elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-    $x = $width - ( 2 * $padx ) - ( 2 * $borderwidth );
-  }
-
-  return ( $x, $y );
+  return ( $xy_anchor_position{$anchor}{x}, $xy_anchor_position{$anchor}{y} );
 }
 
 sub _anchor_position_compound {
@@ -838,174 +875,115 @@ sub _anchor_position_compound {
   my $diff_height = $text_height - $image_height;
 
   # Compound
-  if ( $compound eq 'left' ) {
-    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-      $x_text += $image_width;
-    }
-    elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
-      $x_text += $image_width / 2;
-      $x_image = $x_text - ( $text_width / 2 ) - ( $image_width / 2 );
-    }
-    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-      $x_image -= $text_width;
-    }
-
-    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-      if ( $diff_height > 0 ) {
-        $y_image += ( $diff_height / 2 );
-      }
-      else {
-        $y_text -= ( $diff_height / 2 );
-      }
-    }
-    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-      if ( $diff_height > 0 ) {
-        $y_image -= ( $diff_height / 2 );
-      }
-      else {
-        $y_text += ( $diff_height / 2 );
-      }
-    }
-    $x_text += 4;
-  }
-  elsif ( $compound eq 'right' ) {
-    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-      $x_image += $text_width;
-    }
-    elsif ( $anchor eq 'n' or $anchor eq 'center' or $anchor eq 's' ) {
-      $x_image += ( $text_width / 2 );
-      $x_text -= ( $image_width / 2 );
-    }
-    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-      $x_text -= $image_width;
-    }
-
-    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-      if ( $diff_height > 0 ) {
-        $y_image += ( $diff_height / 2 );
-      }
-      else {
-        $y_text -= ( $diff_height / 2 );
-      }
-    }
-    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-      if ( $diff_height > 0 ) {
-        $y_image -= ( $diff_height / 2 );
-      }
-      else {
-        $y_text += ( $diff_height / 2 );
-      }
-    }
-    $x_image += 4;
-  }
-  elsif ( $compound eq 'center' ) {
-    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-      if ( $diff_width > 0 ) {
-        $x_image += ( $diff_width / 2 );
-      }
-      else {
-        $x_text -= ( $diff_width / 2 );
-      }
-    }
-    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-      if ( $diff_width > 0 ) {
-        $x_image -= ( $diff_width / 2 );
-      }
-      else {
-        $x_text += ( $diff_width / 2 );
-      }
-    }
-    if ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-      if ( $diff_height > 0 ) {
-        $y_image += ( $diff_height / 2 );
-      }
-      else {
-        $y_text -= ( $diff_height / 2 );
-      }
-    }
-    elsif ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-      if ( $diff_height > 0 ) {
-        $y_image -= ( $diff_height / 2 );
-      }
-      else {
-        $y_text += ( $diff_height / 2 );
-      }
-    }
-  }
-  elsif ( $compound eq 'bottom' ) {
-    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-      if ( $diff_width > 0 ) {
-        $x_image += ( $text_width - $image_width ) / 2;
-      }
-      else {
-        $x_text += -($diff_width) / 2;
-      }
-    }
-    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-      if ( $diff_width > 0 ) {
-        $x_image -= ( $text_width - $image_width ) / 2;
-      }
-      else {
-        $x_text -= -($diff_width) / 2;
-      }
-    }
-    if ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-      $y_image = $height - ( 2 * $pady ) - ( 2 * $borderwidth );
-      $y_text -= $image_height;
-    }
-    elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
-      $y_image += $text_height / 2 + $image_height / 2;
-      $y_image -= $text_height / 2;
-      $y_text  -= $text_height / 2;
-    }
-    elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-      $y_image += $text_height;
-    }
-  }
-  elsif ( $compound eq 'top' ) {
-    if ( $anchor eq 'nw' or $anchor eq 'w' or $anchor eq 'sw' ) {
-      if ( $diff_width > 0 ) {
-        $x_image += ($diff_width) / 2;
-      }
-      else {
-        $x_text -= ($diff_width) / 2;
-      }
-    }
-    elsif ( $anchor eq 'ne' or $anchor eq 'e' or $anchor eq 'se' ) {
-      if ( $diff_width > 0 ) {
-        $x_image -= ($diff_width) / 2;
-      }
-      else {
-        $x_text += ($diff_width) / 2;
-      }
-    }
-    if ( $anchor eq 'sw' or $anchor eq 's' or $anchor eq 'se' ) {
-      $y_image = $y_text - $text_height;
-    }
-    elsif ( $anchor eq 'w' or $anchor eq 'center' or $anchor eq 'e' ) {
-      $y_image -= $text_height / 2 + $image_height / 2;
-      $y_image += $text_height / 2;
-      $y_text  += $text_height / 2;
-    }
-    elsif ( $anchor eq 'nw' or $anchor eq 'n' or $anchor eq 'ne' ) {
-      $y_text = $y_text + $image_height;
+  my %xy_anchor_position;
+  foreach my $compound_pos (qw/ left right center top bottom /) {
+    foreach my $anchor_pos (qw/ n ne nw s sw se center e w /) {
+      $xy_anchor_position{$compound_pos}{$anchor_pos}{x_text}  = $x_text;
+      $xy_anchor_position{$compound_pos}{$anchor_pos}{y_text}  = $y_text;
+      $xy_anchor_position{$compound_pos}{$anchor_pos}{x_image} = $x_image;
+      $xy_anchor_position{$compound_pos}{$anchor_pos}{y_image} = $y_image;
     }
   }
 
-  return ( $x_text, $y_text, $x_image, $y_image );
+  # x
+  foreach (qw / nw w sw /) {
+    $xy_anchor_position{left}{$_}{x_text}   += $image_width;
+    $xy_anchor_position{right}{$_}{x_image} += $text_width;
+    if ( $diff_width > 0 ) {
+      $xy_anchor_position{center}{$_}{x_image} += ( $diff_width / 2 );
+      $xy_anchor_position{bottom}{$_}{x_image} += ( $text_width - $image_width ) / 2;
+      $xy_anchor_position{top}{$_}{x_image}    += ($diff_width) / 2;
+    }
+    else {
+      $xy_anchor_position{center}{$_}{x_text} -= ( $diff_width / 2 );
+      $xy_anchor_position{bottom}{$_}{x_text} += -($diff_width) / 2;
+      $xy_anchor_position{top}{$_}{x_text} -= ($diff_width) / 2;
+    }
+  }
+  foreach (qw / n center s /) {
+    $xy_anchor_position{left}{$_}{x_text} += ( $image_width / 2 );
+    $xy_anchor_position{left}{$_}{x_image}
+      = ( $xy_anchor_position{left}{$_}{x_text} - ( $text_width / 2 ) - ( $image_width / 2 ) );
+    $xy_anchor_position{right}{$_}{x_text} -= ( $image_width / 2 );
+    $xy_anchor_position{right}{$_}{x_image} += ( $text_width / 2 );
+  }
+  foreach (qw / ne e se /) {
+    $xy_anchor_position{left}{$_}{x_image} -= $text_width;
+    $xy_anchor_position{right}{$_}{x_text} -= $image_width;
+    if ( $diff_width > 0 ) {
+      $xy_anchor_position{center}{$_}{x_image} -= ( $diff_width / 2 );
+      $xy_anchor_position{bottom}{$_}{x_image} -= ( $text_width - $image_width ) / 2;
+      $xy_anchor_position{top}{$_}{x_image}    -= ($diff_width) / 2;
+    }
+    else {
+      $xy_anchor_position{center}{$_}{x_text} += ( $diff_width / 2 );
+      $xy_anchor_position{bottom}{$_}{x_text} -= -($diff_width) / 2;
+      $xy_anchor_position{top}{$_}{x_text} += ($diff_width) / 2;
+    }
+  }
+
+  # y
+  foreach (qw / nw n ne /) {
+    if ( $diff_height > 0 ) {
+      $xy_anchor_position{left}{$_}{y_image}   += ( $diff_height / 2 );
+      $xy_anchor_position{right}{$_}{y_image}  += ( $diff_height / 2 );
+      $xy_anchor_position{center}{$_}{y_image} += ( $diff_height / 2 );
+    }
+    else {
+      $xy_anchor_position{left}{$_}{y_text}   -= ( $diff_height / 2 );
+      $xy_anchor_position{right}{$_}{y_text}  -= ( $diff_height / 2 );
+      $xy_anchor_position{center}{$_}{y_text} -= ( $diff_height / 2 );
+    }
+    $xy_anchor_position{bottom}{$_}{y_image} += $text_height;
+    $xy_anchor_position{top}{$_}{y_text}     += $image_height;
+  }
+  foreach (qw / sw s se /) {
+    if ( $diff_height > 0 ) {
+      $xy_anchor_position{left}{$_}{y_image}   -= ( $diff_height / 2 );
+      $xy_anchor_position{right}{$_}{y_image}  -= ( $diff_height / 2 );
+      $xy_anchor_position{center}{$_}{y_image} -= ( $diff_height / 2 );
+    }
+    else {
+      $xy_anchor_position{left}{$_}{y_text}   += ( $diff_height / 2 );
+      $xy_anchor_position{right}{$_}{y_text}  += ( $diff_height / 2 );
+      $xy_anchor_position{center}{$_}{y_text} += ( $diff_height / 2 );
+    }
+    $xy_anchor_position{bottom}{$_}{y_image} = $height - ( 2 * $pady ) - ( 2 * $borderwidth );
+    $xy_anchor_position{bottom}{$_}{y_text} -= $image_height;
+    $xy_anchor_position{top}{$_}{y_image} = $xy_anchor_position{top}{$_}{y_text} - $text_height;
+  }
+  foreach (qw / w center e /) {
+    $xy_anchor_position{bottom}{$_}{y_text} -= $text_height / 2;
+    $xy_anchor_position{bottom}{$_}{y_image} += $image_height / 2;
+    $xy_anchor_position{top}{$_}{y_text}     += $text_height / 2;
+    $xy_anchor_position{top}{$_}{y_image} -= $image_height / 2;
+  }
+
+  foreach my $anchor_pos (qw/ n ne nw s sw se center e w /) {
+    $xy_anchor_position{left}{$anchor_pos}{x_text}   += $SPACE_PLUS;
+    $xy_anchor_position{right}{$anchor_pos}{x_image} += $SPACE_PLUS;
+  }
+
+  my @xy_text
+    = ( $xy_anchor_position{$compound}{$anchor}{x_text}, $xy_anchor_position{$compound}{$anchor}{y_text} );
+  my @xy_image
+    = ( $xy_anchor_position{$compound}{$anchor}{x_image}, $xy_anchor_position{$compound}{$anchor}{y_image} );
+
+  return ( @xy_text, @xy_image );
 }
 
 sub _tooltip {
   my $cw = shift;
 
   my $state = $cw->cget( -state );
-  return if ( $state eq 'disabled' );
+  if ( $state eq 'disabled' ) { return; }
+
   my $tooltip_balloon = $cw->cget( -tooltip );
   my $id              = $cw->{_cb_id};
-  my $initwait        = 350;
+  my $initwait        = $INITWAIT;
   my $tooltip;
 
-  if ( ref $tooltip_balloon eq 'ARRAY' and $tooltip_balloon->[1] and $tooltip_balloon->[1] =~ m{^\d+$} ) {
+  if ( ref $tooltip_balloon eq 'ARRAY' and $tooltip_balloon->[1] ) {
     $tooltip  = $tooltip_balloon->[0];
     $initwait = $tooltip_balloon->[1];
   }
@@ -1032,26 +1010,15 @@ sub _tooltip {
   return;
 }
 
-sub _MaxArray {
-  my ($RefNumber) = @_;
+sub _maxarray {
+  my ($ref_umber) = @_;
   my $max;
 
-  for my $chiffre ( @{$RefNumber} ) {
+  for my $chiffre ( @{$ref_umber} ) {
     $max = _max( $max, $chiffre );
   }
 
   return $max;
-}
-
-sub _MinArray {
-  my ($RefNumber) = @_;
-  my $min;
-
-  for my $chiffre ( @{$RefNumber} ) {
-    $min = _min( $min, $chiffre );
-  }
-
-  return $min;
 }
 
 sub _max {
@@ -1061,18 +1028,6 @@ sub _max {
   if ( not defined $a and not defined $b ) { return; }
 
   if   ( $a >= $b ) { return $a; }
-  else              { return $b; }
-
-  return;
-}
-
-sub _min {
-  my ( $a, $b ) = @_;
-  if ( not defined $a ) { return $b; }
-  if ( not defined $b ) { return $a; }
-  if ( not defined $a and not defined $b ) { return; }
-
-  if   ( $a <= $b ) { return $a; }
   else              { return $b; }
 
   return;
@@ -1098,14 +1053,14 @@ Tk::ColoredButton - Button widget with background gradient color.
   my $mw = MainWindow->new( -background => 'white', -title => 'ColoredButton example' );
   $mw->minsize( 300, 300 );
   
-  my $ColoredButton = $mw->ColoredButton(
+  my $coloredbutton = $mw->ColoredButton(
     -text               => 'ColoredButton1',
     -autofit            => 1,
     -font               => '{arial} 12 bold',
     -command            => [ \&display, 'ColoredButton1' ],
   )->pack(qw/-padx 10 -pady 10 /);
   
-  my $ColoredButton2 = $mw->ColoredButton(
+  my $coloredbutton2 = $mw->ColoredButton(
     -text     => 'ColoredButton2',
     -font     => '{arial} 12 bold',
     -command  => [ \&display, 'ColoredButton2' ],
@@ -1113,21 +1068,23 @@ Tk::ColoredButton - Button widget with background gradient color.
     -width    => 160,
     -gradient => {
       -start_color  => '#FFFFFF',
-      -end_color    => '#bfd4e8',
+      -end_color    => '#BFD4E8',
       -type         => 'mirror_vertical',
       -start        => 50,
       -number_color => 10
     },
     -activegradient => {
-      -start_color  => '#bfd4e8',
+      -start_color  => '#BFD4E8',
       -end_color    => '#FFFFFF',
       -type         => 'mirror_vertical',
       -start        => 50,
       -number_color => 10
     },
+    -tooltip => 'my button message',
   )->pack(qw/-padx 10 -pady 10 /);
+  $coloredbutton2->flash();
   
-  my $Button = $mw->Button(
+  my $button = $mw->Button(
     -activebackground => 'yellow',
     -background       => 'green',
     -text             => 'Real Button',
@@ -1139,7 +1096,7 @@ Tk::ColoredButton - Button widget with background gradient color.
   
   sub display {
     my $message = shift;
-    print "$message\n" if ($message);
+    if ($message) { print "$message\n"; }
   }
 
 
@@ -1178,7 +1135,7 @@ the button. Please read the options of the B<set_gradientcolor> method of L<Tk::
 understand the options.
   
   -activegradient => {
-    -start_color  => '#bfd4e8',
+    -start_color  => '#BFD4E8',
     -end_color    => '#FFFFFF',
     -type         => 'mirror_vertical',
     -start        => 50,
@@ -1218,7 +1175,7 @@ B<set_gradientcolor> method of L<Tk::Canvas::GradientColor/set_gradientcolor> to
   
   -gradient => {
     -start_color  => '#FFFFFF',
-    -end_color    => '#bfd4e8',
+    -end_color    => '#BFD4E8',
     -type         => 'mirror_vertical',
     -start        => 50,
     -number_color => 10
@@ -1243,10 +1200,10 @@ Default : B<-height =E<gt> 20,> B<-width =E<gt> 80,>
 
 =item Class: B<ImageDisabled>
 
-=item Switch: B<-imagedisabled> => I<$tooltip or [$tooltip, $iniwait?]>
+=item Switch: B<-imagedisabled> => I<$image_photo>
 
 Specifies an image to display in the button when it is disabled. (
-See L<Tk::Photo> or L<Tk::Image> for details of image creation.) .
+See L<Tk::Photo> or L<Tk::Image> for details of image creation.).
 
   -imagedisabled => $image_photo,         
 
@@ -1369,7 +1326,7 @@ L<http://search.cpan.org/dist/Tk-ColoredButton/>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010 Djibril Ousmanou.
+Copyright 2011 Djibril Ousmanou.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

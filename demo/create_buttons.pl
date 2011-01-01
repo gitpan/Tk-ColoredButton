@@ -1,20 +1,25 @@
 #!/usr/bin/perl
-#================================================================
-# Date : 19/06/2010 23:02:53
-# Author : Djibril Ousmanou
-# Main   : Test the module by creation of severals buttons
-#================================================================
+#====================================================================
+# $Author    : Djibril Ousmanou                                    $
+# $Copyright : 2011                                                $
+# $Update    : 01/01/2011 00:00:00                                 $
+# $AIM       : Test the module by creation of severals buttons     $
+#====================================================================
 use strict;
 use warnings;
 
 use Tk;
 use Tk::ColoredButton;
 use Tk::PNG;
+use Time::HiRes qw ( sleep );
+
+use vars qw($VERSION);
+$VERSION = '1.04';
 
 my $mw = MainWindow->new( -background => 'white', -title => 'Buttons' );
 $mw->minsize( 300, 300 );
 
-my $pixmap1 = <<PIXMAP;
+my $pixmap1 = <<'PIXMAP';
 /* XPM */
 static char * Icon_xpm[] = {
 "32 32 4 1",
@@ -56,7 +61,7 @@ static char * Icon_xpm[] = {
 ".XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX."};
 PIXMAP
 
-my $pixmap2 = <<PIXMAP;
+my $pixmap2 = <<'PIXMAP';
 /* XPM */
 static char * exemple_xpm[] = {
 "24 20 3 1",
@@ -85,7 +90,7 @@ static char * exemple_xpm[] = {
 "       +++++++++ ...    "};
 PIXMAP
 
-my $image = <<"DATA";
+my $image = <<'DATA';
 iVBORw0KGgoAAAANSUhEUgAAACQAAAAOCAMAAABw6U76AAAAB3RJTUUH1AsUERQYzfaDBAAAAAlw
 SFlzAAALEgAACxIB0t1+/AAAAJlQTFRFn0EDPxoBIQ4B/5pX/2YAfTMC5V4EwlAE1VgE4V0E8GMF
 /6tz////8dTA+bKC9+ng8GwU/7SC4KeC/49E8K6C/9Gy355y0HIz5YRD9GQF6KuC/3IV//bw9+DQ
@@ -96,7 +101,7 @@ iRyZ2X9BCgjXgtFkA2ybkTYmxbJCK2TUjGaIYmBukZeQW6FwIaX6OAF/aIRwbBHvFbKZ+m9NA+Ju
 j4jHIsEvn2y83y/udFrTfQGnKxbutFN/VQAAAABJRU5ErkJggg==
 DATA
 
-my $image_stop = <<DATA;
+my $image_stop = <<'DATA';
 R0lGODlhEAAQAPe9ANsAAOfa2tIAAP8AAP/o6PoAAMd+OPUAANUAAPcAANgAANkAAPsAAP7//9cA
 AP0AAJ1eKZ5dKdUUFOcAAJ5GLZ5HL+OSkv9mZv+Skv8FBaRqL6ZrL6wAAP+Rkf/i4ufY2N/Kyt7J
 yf9KSu0AANxzc/9SUoI4GaA0Ia1vMalsMH0rE9a7u6ZQRPRCQp9JKP5fX6taKMBTU8qDOsyEOv/I
@@ -118,18 +123,18 @@ GgHASo4XV5aUEAKCFy9cWQYcmGAjTJs6XND8KRXAbYBPDCgBcqBCR4tNUGLx4PWkC69RucYASIXq
 DGaRoaVqwRxJizKiwAQEAQAEjVZd2pBRoKcUcEy8BnKjQUrDgAA7
 DATA
 
-my $ObjImage  = $mw->Photo( -data => $image );
-my $ObjImage2 = $mw->Photo( -data => $image_stop );
-my $ObjPixmap1 = $mw->Pixmap( -data => $pixmap1 );
-my $ObjPixmap2 = $mw->Pixmap( -data => $pixmap2 );
+my $obj_image  = $mw->Photo( -data => $image );
+my $obj_image2 = $mw->Photo( -data => $image_stop );
+my $obj_pixmap1 = $mw->Pixmap( -data => $pixmap1 );
+my $obj_pixmap2 = $mw->Pixmap( -data => $pixmap2 );
 
-my %ColoredButtonConf = (
+my %coloredbutton_conf = (
   -height  => 40,
   -width   => 160,
   -font    => '{arial} 12 bold',
   -command => sub { exit; },
 );
-my %ButtonConf = (
+my %button_conf = (
   -font             => '{arial} 12 bold',
   -command          => sub { print "test\n"; },
   -background       => '#F0D0FF',
@@ -175,71 +180,71 @@ my %active_gradient3 = (
 );
 
 # 6 boutons
-my $Button1
-  = $mw->ColoredButton( -text => 'Button1', %ColoredButtonConf, -tooltip => 'Button1', -autofit => 1 );
-my $Button2 = $mw->ColoredButton(
+my $button1
+  = $mw->ColoredButton( -text => 'Button1', %coloredbutton_conf, -tooltip => 'Button1', -autofit => 1 );
+my $button2 = $mw->ColoredButton(
   -text => 'Button2',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button2',
   -gradient       => \%gradient1,
   -activegradient => \%active_gradient1,
-  -image          => $ObjPixmap2,
+  -image          => $obj_pixmap2,
   -compound       => 'top',
 );
-my $Button3 = $mw->ColoredButton(
+my $button3 = $mw->ColoredButton(
   -text => 'Button3',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip  => 'Button3',
   -gradient => \%gradient2
 );
-my $Button4 = $mw->ColoredButton(
+my $button4 = $mw->ColoredButton(
   -text => 'Button4',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button4',
   -gradient       => \%gradient3,
   -activegradient => \%active_gradient3,
-  -image          => $ObjPixmap1,
+  -image          => $obj_pixmap1,
 );
-my $Button5 = $mw->ColoredButton(
+my $button5 = $mw->ColoredButton(
   -text => 'Button5',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip  => 'Button5',
   -gradient => { -start_color => '#FFCC33', -end_color => '#9999FF', },
 );
-my $Button6 = $mw->ColoredButton(
+my $button6 = $mw->ColoredButton(
   -text => 'Button6',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button6',
   -gradient       => { -start_color => 'brown', -end_color => 'yellow', -type => 'radial' },
   -activegradient => { -start_color => 'yellow', -end_color => 'brown', -type => 'losange' },
 );
-my $Button7 = $mw->ColoredButton(
+my $button7 = $mw->ColoredButton(
   -text => 'Button7',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button7',
   -gradient       => { -start_color => '#99CCCC', -end_color => '#999933', -type => 'corner_left' },
   -activegradient => { -start_color => 'white', -end_color => 'black', -type => 'corner_right' },
 );
-my $Button8 = $mw->ColoredButton(
+my $button8 = $mw->ColoredButton(
   -text => 'Button8',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button8',
   -gradient       => { -start_color => '#666666', -end_color => '#00B0D0' },
   -activegradient => { -start_color => '#60C000', -end_color => '#7000D0' },
 );
-my $Button9 = $mw->ColoredButton(
+my $button9 = $mw->ColoredButton(
   -text => 'Button9',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button9',
   -gradient       => { -start_color => '#F07FC0', -end_color => '#007FF0' },
   -activegradient => { -start_color => 'white', -end_color => '#FF7030' },
-  -image          => $ObjImage,
+  -image          => $obj_image,
   -compound       => 'right',
   -background     => 'red',
 );
-my $Button10 = $mw->ColoredButton(
+my $button10 = $mw->ColoredButton(
   -text => 'Button10',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button10',
   -gradient       => { -start_color => '#7F8000', -end_color => 'white' },
   -activegradient => { -start_color => 'white', -end_color => '#7F8000' },
@@ -247,47 +252,64 @@ my $Button10 = $mw->ColoredButton(
   -compound       => 'left',
   -autofit        => 1
 );
-my $Button11 = $mw->ColoredButton(
+my $button11 = $mw->ColoredButton(
   -text => 'Button11',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip        => 'Button11',
   -gradient       => { -start_color => 'green', -end_color => 'black' },
   -activegradient => { -start_color => 'gray50', -end_color => '#7F8000' },
-  -imagedisabled  => $ObjImage2,
+  -imagedisabled  => $obj_image2,
   -compound       => 'left',
 );
-my $Button12 = $mw->ColoredButton(
+my $button12 = $mw->ColoredButton(
   -text => 'Button12',
-  %ColoredButtonConf,
+  %coloredbutton_conf,
   -tooltip  => 'Button12',
   -gradient => { -start_color => 'pink', -end_color => '#8945C3', -number_color => 5, -type => 'radial' },
   -activegradient =>
     { -start_color => 'white', -end_color => '#60FF50', -number_color => 3, -type => 'linear_vertical' },
-  -image          => $ObjImage,
+  -image          => $obj_image,
   -compound       => 'left',
   -repeatdelay    => 5000,
   -repeatinterval => 1000,
   -state          => 'disabled',
-  -imagedisabled  => $ObjImage2,
+  -imagedisabled  => $obj_image2,
   -command        => sub { print "boutton 12\n"; },
 );
 
-my $RealButton1 = $mw->Button(
+my $real_button1 = $mw->Button(
   -text => 'Real button 1 - enabled button 11',
-  %ButtonConf,
-  -command => sub { $Button11->configure( -state => 'normal' ); $Button11->redraw_button; },
+  %button_conf,
+  -command => sub { $button11->configure( -state => 'normal' ); $button11->redraw_button; },
 
 );
-my $RealButton2 = $mw->Button(
+my $real_button2 = $mw->Button(
   -text    => 'Disabled button 11',
   -font    => '{arial} 12 bold',
-  -command => sub { $Button11->configure( -state => 'disabled' ); $Button11->redraw_button; },
+  -command => sub { $button11->configure( -state => 'disabled' ); $button11->redraw_button; },
 );
 
-$Button1->grid( $Button2,  $Button3,  $Button4,  qw/ -padx 10 -pady 10 / );
-$Button5->grid( $Button6,  $Button7,  $Button8,  qw/ -padx 10 -pady 10 / );
-$Button9->grid( $Button10, $Button11, $Button12, qw/ -padx 10 -pady 10 / );
-$RealButton1->grid( $RealButton2, qw/ -padx 10 -pady 10 / );
+$button1->grid( $button2,  $button3,  $button4,  qw/ -padx 10 -pady 10 / );
+$button5->grid( $button6,  $button7,  $button8,  qw/ -padx 10 -pady 10 / );
+$button9->grid( $button10, $button11, $button12, qw/ -padx 10 -pady 10 / );
+$real_button1->grid( $real_button2, qw/ -padx 10 -pady 10 / );
 
+$button9->flash();
+
+foreach my $bouton (
+  $button1, $button2, $button3,  $button4,  $button5,  $button6,      $button7,
+  $button8, $button9, $button10, $button11, $button12, $real_button1, $real_button2,
+  )
+{
+
+  foreach my $anchor (qw/ nw n ne e se s sw w center /) {
+    $bouton->configure( -anchor => $anchor );
+    if ( $bouton->class eq 'ColoredButton' ) {
+      $bouton->redraw_button;
+    }
+    $bouton->update;
+    sleep 0.5;
+  }
+}
 MainLoop;
 

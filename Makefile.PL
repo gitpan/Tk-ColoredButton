@@ -9,6 +9,7 @@ WriteMakefile
           'VERSION_FROM' => 'lib/Tk/ColoredButton.pm',
           'PREREQ_PM' => {
                            'Test::More' => 0,
+                           'English' => 0,
                            'Tk::Canvas::GradientColor' => '1.04',
                            'Tk' => 800
                          }
