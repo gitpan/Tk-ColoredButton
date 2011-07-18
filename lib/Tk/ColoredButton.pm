@@ -7,12 +7,12 @@ use Carp;
 #====================================================================
 # $Author    : Djibril Ousmanou                                    $
 # $Copyright : 2011                                                $
-# $Update    : 01/01/2011 00:00:00                                 $
+# $Update    : 18/07/2011 02:07:06                                 $
 # $AIM       : Create gradient background color on a button        $
 #====================================================================
 
 use vars qw($VERSION);
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 use base qw/Tk::Derived Tk::Canvas::GradientColor/;
 use Tk::Balloon;
@@ -62,7 +62,7 @@ my %config = (
     font     => '_cb_font_tag'
   },
   button => { press => 0, },
-  ids    => { flash => undef, textvariable => undef, id_repeatdelay => undef },
+  ids    => { flash => undef, id_repeatdelay => undef },
   specialbutton => {
     -background         => $system_button_face,
     -borderwidth        => 2,
@@ -139,7 +139,7 @@ sub Populate {
     -repeatdelay    => [ 'PASSIVE', 'repeatDelay',    'RepeatDelay',    undef ],
     -repeatinterval => [ 'PASSIVE', 'repeatInterval', 'RepeatInterval', undef ],
     -text           => [ 'PASSIVE', 'text',           'Text',           $SPACE ],
-    -textvariable   => [ 'METHOD',  'textVariable',   'TextVariable',   undef ],
+    -textvariable   => [ 'PASSIVE', 'textVariable',   'TextVariable',   undef ],
     -tooltip        => [ 'PASSIVE', 'tooltip',        'Tooltip',        undef ],
     -wraplength     => [ 'PASSIVE', 'wrapLength',     'WrapLength',     0 ],
   );
@@ -227,35 +227,17 @@ sub flash {
   return $id_flash;
 }
 
-sub textvariable {
-  my ( $cw, $ref_text ) = @_;
+sub delete_tooltip {
+  my $cw = shift;
 
-  if ( not defined $ref_text ) {
-    my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
-    if ( defined $id_textvariable ) {
-      $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
-      $id_textvariable->cancel();
-    }
-
-    return;
+  my $id = $cw->{_cb_id};
+  if ( $id and exists $all_balloon{$id} and Tk::Exists $all_balloon{$id} ) {
+    $cw->configure( -tooltip => '' );
+    $all_balloon{$id}->configure( -state => 'none' );
+    $all_balloon{$id}->detach($cw);
+    $all_balloon{$id}->destroy;
+    $all_balloon{$id} = undef;
   }
-
-  my $tag_text        = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
-  my $id_textvariable = $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable};
-  $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} = $ref_text;
-
-  if ( defined $id_textvariable ) {
-    $id_textvariable->cancel();
-  }
-  if ( $cw->cget( -text ) ) { $cw->_text(); }
-  $id_textvariable = $cw->repeat(
-    $TEXTVARIABLE_INTERVALL,
-    sub {
-      if ( !Tk::Exists $cw )    { return; }
-      if ( $cw->cget( -text ) ) { $cw->_text(); }
-    }
-  );
-  $cw->{_conf_cb}{ $cw->{_cb_id} }{ids}{textvariable} = $id_textvariable;
 
   return;
 }
@@ -649,8 +631,7 @@ sub _image_bitmap {
 }
 
 sub _text {
-  my $cw = shift;
-
+  my $cw                 = shift;
   my $anchor             = $cw->cget( -anchor );
   my $disabledforeground = $cw->cget( -disabledforeground );
   my $font               = $cw->cget( -font );
@@ -659,10 +640,20 @@ sub _text {
   my $state              = $cw->cget( -state );
   my $tag_all            = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{all};
   my $tag_text           = $cw->{_conf_cb}{ $cw->{_cb_id} }{tags}{text};
-  my $text               = $cw->{_conf_cb}{ $cw->{_cb_id} }{-textvariable} || $cw->cget( -text );
+  my $text               = $cw->cget( -text );
+  my $ref_textvariable   = $cw->cget( -textvariable );
   my $wraplength         = $cw->cget( -wraplength );
 
-  if ( ref $text eq 'SCALAR' ) { $text = ${$text}; }
+  # -textvariable used
+  if ( ref $ref_textvariable eq 'SCALAR' ) {
+    $text = ${$ref_textvariable};
+    $cw->configure( -textvariable => undef );
+    $cw->configure( -text         => $text );
+
+    # check modification of textvariable value
+    my $id;
+    $id = $cw->repeat( $TEXTVARIABLE_INTERVALL, [ \&_check_textvariable, $cw, $ref_textvariable, \$id ] );
+  }
   $cw->_delete_text;
 
   my ( $x_text, $y_text ) = $cw->_anchor_position($anchor);
@@ -681,6 +672,18 @@ sub _text {
     $cw->itemconfigure( $tag_text, -fill => $disabledforeground );
   }
 
+  return;
+}
+
+sub _check_textvariable {
+  my ( $cw, $ref_textvariable, $ref_id ) = @_;
+  my $last_text = $cw->cget( -text );
+  my $new_text  = ${$ref_textvariable};
+
+  if ( ( defined $last_text and defined $new_text ) and ( $last_text ne $new_text ) ) {
+    $cw->configure( -text => $new_text );
+    $cw->redraw_button;
+  }
   return;
 }
 
@@ -976,7 +979,8 @@ sub _tooltip {
   my $cw = shift;
 
   my $state = $cw->cget( -state );
-  if ( $state eq 'disabled' ) { return; }
+
+  #if ( $state eq 'disabled' ) { return; }
 
   my $tooltip_balloon = $cw->cget( -tooltip );
   my $id              = $cw->{_cb_id};
@@ -1154,7 +1158,7 @@ Default : B<{ -start_color =E<gt> '#FFFFFF', -end_color =E<gt> '#B2B2B2' }>
 
 =item Switch: B<-autofit> => I<1 or 0>
 
-Enables automatic adjustment (width and height) of the button depending on the content displayed (text, image, bitmap, ...). 
+Enables automatic adjustment (width and height) of the button depending on the displayed content (text, image, bitmap, ...). 
   
   -autofit => 1,
 
@@ -1236,6 +1240,18 @@ Default : B<undef>
 =head1 WIDGET-SPECIFIC METHODS
 
 You can use B<invoke> method like in L<Tk::Button>.
+
+=head2 delete_tooltip
+
+=over 4
+
+=item I<$button_bgc>->B<delete_tooltip>
+
+Delete the help balloon created with tooltip option.
+
+  $button_bgc->delete_tooltip;
+
+=back
 
 =head2 flash
 

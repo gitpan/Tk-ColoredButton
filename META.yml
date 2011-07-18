@@ -8,8 +8,9 @@ build_requires:
   Tk: 800
   Tk::Canvas::GradientColor: 1.04
 configure_requires:
-  Module::Build: 0.36
-generated_by: 'Module::Build version 0.3607'
+  Module::Build: 0.38
+dynamic_config: 1
+generated_by: 'Module::Build version 0.38, CPAN::Meta::Converter version 2.110930'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -18,7 +19,7 @@ name: Tk-ColoredButton
 provides:
   Tk::ColoredButton:
     file: lib/Tk/ColoredButton.pm
-    version: 1.04
+    version: 1.05
 resources:
   license: http://dev.perl.org/licenses/
-version: 1.04
+version: 1.05

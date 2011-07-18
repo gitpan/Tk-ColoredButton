@@ -2,7 +2,7 @@
 #====================================================================
 # $Author    : Djibril Ousmanou                                    $
 # $Copyright : 2011                                                $
-# $Update    : 01/01/2011 00:00:00                                 $
+# $Update    : 17/07/2011 12:47:33                                 $
 # $AIM       : Test the module by creation of severals buttons     $
 #====================================================================
 use strict;
@@ -14,7 +14,7 @@ use Tk::PNG;
 use Time::HiRes qw ( sleep );
 
 use vars qw($VERSION);
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 my $mw = MainWindow->new( -background => 'white', -title => 'Buttons' );
 $mw->minsize( 300, 300 );
